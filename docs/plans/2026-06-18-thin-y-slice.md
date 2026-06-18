@@ -643,3 +643,14 @@ git commit -m "feat: make-video skill (thin Y-slice orchestrator)"
 **3. Type consistency:** `Segment` fields (`sourceUsedDuration`, `speedFactor`, `padDuration`, `targetDuration`, `voFile`) are defined in Task 2 and used identically in Tasks 3, 5, 6. `synthesizeChunk`/`planSegments`/`assembleVideo` signatures match across the producing and consuming tasks. ✅
 
 **4. Known follow-ups (next plan):** replace the manual `transcript.json`/`recording.mp4` drop with Tella-MCP ingest; add the real-face intro + faceless outro concat; add captions burned from `script.json`.
+
+---
+
+## Task 5→6 Blockers (from final whole-branch review, 2026-06-18)
+
+Fix before Task 6 wires real recordings into `assembleVideo` (these don't affect the synthetic-fixture tests but surface on real footage):
+
+1. **`-c copy` concat fragility** — segment clips are concat-demuxed with `-c copy`, which requires identical codec params. Real recordings (variable fps/timebase) can cause non-monotonic DTS or A/V drift at joins. Fix: normalize per clip (`-vsync cfr`, pinned profile/level/timebase) or use the `concat` filter with re-encode.
+2. **`-shortest` may truncate narration** — video and audio are concatenated independently; rounding can make the video end a few ms short, and `-shortest` then clips the *audio* (narration), violating content-is-sacred. Fix: guarantee video ≥ audio (pad with `tpad`/`apad`) before muxing.
+
+Deferred Minors (non-blocking): hardcoded `-r 30`; no `workDir` cleanup; strict float-equality branches in `align.ts` (≤7e-15s, absorbed by `toFixed(3)`); placeholder `tests/setup.test.ts`.
