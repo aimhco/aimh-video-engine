@@ -1,0 +1,14 @@
+{
+  "name": "aimh-video-engine",
+  "module": "scripts/make-video.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "make-video": "bun run scripts/make-video.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
