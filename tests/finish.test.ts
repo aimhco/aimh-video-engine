@@ -20,4 +20,14 @@ test("assembleVideo produces a file whose duration matches the sum of targets", 
   const dur = await ffprobeDuration(out);
   expect(dur).toBeGreaterThan(3.5);
   expect(dur).toBeLessThan(4.5); // ~4s total (2 + 2)
+
+  const streams = await Bun.$`ffprobe -v error -show_entries stream=codec_type -of csv=p=0 ${dir}/final.mp4`.text();
+  expect(streams).toContain("video");
+  expect(streams).toContain("audio");
+});
+
+test("assembleVideo throws on empty segments", async () => {
+  await expect(
+    assembleVideo({ recording: "nonexistent.mp4", segments: [], workDir: "/tmp/aimh-none", out: "/tmp/aimh-none/out.mp4" })
+  ).rejects.toThrow("no segments");
 });
