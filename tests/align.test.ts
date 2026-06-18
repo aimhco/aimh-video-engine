@@ -38,3 +38,7 @@ test("footage far shorter → clamp to 0.5x and freeze-pad", () => {
 test("throws when a chunk has no matching VO", () => {
   expect(() => planSegments([chunk("c1", 0, 5)], [])).toThrow("c1");
 });
+
+test("throws when a chunk's VO has non-positive duration", () => {
+  expect(() => planSegments([chunk("c1", 0, 5)], [vo("c1", 0)])).toThrow("c1");
+});

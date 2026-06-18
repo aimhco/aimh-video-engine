@@ -13,6 +13,7 @@ export function planSegments(script: ScriptChunk[], vo: VoChunk[]): Segment[] {
     if (sourceDuration <= 0) throw new Error(`planSegments: bad source range for ${c.id}`);
 
     const target = v.duration;
+    if (target <= 0) throw new Error(`planSegments: voiceover for chunk ${c.id} has non-positive duration`);
     const speedFactor = clamp(sourceDuration / target, MIN_SPEED, MAX_SPEED);
     const afterSpeed = sourceDuration / speedFactor;
 
