@@ -15,5 +15,15 @@ test("loadTranscript parses a valid transcript", async () => {
 test("loadTranscript throws on missing words array", async () => {
   const path = `${import.meta.dir}/fixtures/transcript.bad.json`;
   await Bun.write(path, JSON.stringify({ duration: 2.0 }));
-  expect(loadTranscript(path)).rejects.toThrow("words");
+  await expect(loadTranscript(path)).rejects.toThrow("words");
+});
+
+test("loadTranscript throws a wrapped error on invalid JSON", async () => {
+  const path = `${import.meta.dir}/fixtures/transcript.invalid.json`;
+  await Bun.write(path, "{ not valid json");
+  await expect(loadTranscript(path)).rejects.toThrow("transcript:");
+});
+
+test("loadTranscript throws a wrapped error on a missing file", async () => {
+  await expect(loadTranscript(`${import.meta.dir}/fixtures/does-not-exist.json`)).rejects.toThrow("transcript:");
 });
