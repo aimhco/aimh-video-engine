@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Env / secrets — never commit these
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+
+# Per-video working artifacts (large media files)
+videos/
+*.mp4
+*.mov
+*.mp3
+*.wav
+*.m4a
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

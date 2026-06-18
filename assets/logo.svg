@@ -1,0 +1,25 @@
+<svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="aimh-video-engine logo">
+  <defs>
+    <linearGradient id="bg" x1="8" y1="8" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8916F"/>
+      <stop offset="1" stop-color="#B14A33"/>
+    </linearGradient>
+    <clipPath id="bar">
+      <rect x="30" y="40" width="60" height="15" rx="3"/>
+    </clipPath>
+  </defs>
+  <rect x="8" y="8" width="104" height="104" rx="26" fill="url(#bg)"/>
+  <!-- clapperboard body -->
+  <rect x="32" y="55" width="56" height="34" rx="5" fill="#FFFFFF"/>
+  <!-- clapper bar -->
+  <rect x="30" y="40" width="60" height="15" rx="3" fill="#FFFFFF"/>
+  <!-- diagonal stripes -->
+  <g clip-path="url(#bar)" fill="#B14A33">
+    <polygon points="36,40 44,40 38,55 30,55"/>
+    <polygon points="50,40 58,40 52,55 44,55"/>
+    <polygon points="64,40 72,40 66,55 58,55"/>
+    <polygon points="78,40 86,40 80,55 72,55"/>
+  </g>
+  <!-- play triangle -->
+  <polygon points="53,65 53,81 68,73" fill="#B14A33"/>
+</svg>
