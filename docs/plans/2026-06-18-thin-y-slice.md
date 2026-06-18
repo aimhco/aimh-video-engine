@@ -46,6 +46,7 @@ aimh-video-engine/
 │   ├── types.ts                       # Task 2 — shared types
 │   ├── transcript.ts                  # Task 2 — load/validate transcript.json
 │   ├── align.ts                       # Task 3 — planSegments() (pure, the core re-sync logic)
+│   ├── ffprobe.ts                     # Task 5 — ffprobeDuration() (no credentials)
 │   ├── elevenlabs.ts                  # Task 4 — synthesizeChunk()
 │   └── finish.ts                      # Task 5 — assembleVideo() (FFmpeg)
 ├── scripts/
@@ -350,25 +351,14 @@ git commit -m "feat: segment planner sizes footage to voiceover (re-sync core)"
 **Interfaces:**
 - Consumes: env `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; `ScriptChunk`, `VoChunk`.
 - Produces:
-  - `function ffprobeDuration(path: string): Promise<number>` — seconds, via `ffprobe`.
-  - `function synthesizeChunk(chunk: ScriptChunk, outDir: string): Promise<VoChunk>` — writes `outDir/<id>.mp3`, returns its `VoChunk` with measured duration.
+  - `function synthesizeChunk(chunk: ScriptChunk, outDir: string): Promise<VoChunk>` — writes `outDir/<id>.mp3`, returns its `VoChunk` with measured duration (uses `ffprobeDuration` from `src/ffprobe.ts`).
 
 - [ ] **Step 1: Write `src/elevenlabs.ts`**
 
 ```ts
 // src/elevenlabs.ts
 import type { ScriptChunk, VoChunk } from "./types";
-
-export async function ffprobeDuration(path: string): Promise<number> {
-  const proc = Bun.spawn([
-    "ffprobe", "-v", "error", "-show_entries", "format=duration",
-    "-of", "default=noprint_wrappers=1:nokey=1", path,
-  ]);
-  const out = await new Response(proc.stdout).text();
-  const seconds = parseFloat(out.trim());
-  if (!Number.isFinite(seconds)) throw new Error(`ffprobe: could not read duration of ${path}`);
-  return seconds;
-}
+import { ffprobeDuration } from "./ffprobe";
 
 export async function synthesizeChunk(chunk: ScriptChunk, outDir: string): Promise<VoChunk> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -415,12 +405,28 @@ git commit -m "feat: ElevenLabs chunk synthesis + ffprobe duration"
 ### Task 5: FFmpeg assembler
 
 **Files:**
-- Create: `src/finish.ts`
+- Create: `src/ffprobe.ts`, `src/finish.ts`
 - Test: `tests/finish.test.ts`
 
 **Interfaces:**
 - Consumes: `Segment[]` from `planSegments`; the recording path; an output path.
 - Produces: `function assembleVideo(opts: { recording: string; segments: Segment[]; workDir: string; out: string }): Promise<string>` — cuts each segment from the recording, applies speed + freeze-pad, concatenates them, lays the concatenated voiceover as the audio track, writes `out`, returns `out`. Original recording audio is dropped.
+
+- [ ] **Step 0: Create the ffprobe utility (no credentials needed)**
+
+```ts
+// src/ffprobe.ts
+export async function ffprobeDuration(path: string): Promise<number> {
+  const proc = Bun.spawn([
+    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1", path,
+  ]);
+  const out = await new Response(proc.stdout).text();
+  const seconds = parseFloat(out.trim());
+  if (!Number.isFinite(seconds)) throw new Error(`ffprobe: could not read duration of ${path}`);
+  return seconds;
+}
+```
 
 - [ ] **Step 1: Write the failing test**
 
@@ -428,7 +434,7 @@ git commit -m "feat: ElevenLabs chunk synthesis + ffprobe duration"
 // tests/finish.test.ts
 import { expect, test } from "bun:test";
 import { assembleVideo } from "../src/finish";
-import { ffprobeDuration } from "../src/elevenlabs";
+import { ffprobeDuration } from "../src/ffprobe";
 import type { Segment } from "../src/types";
 
 // Generates a 6s test recording + two 2s tone VO files with ffmpeg, then assembles.
@@ -508,8 +514,8 @@ Expected: PASS (1 test). (First run is slow — it shells out to FFmpeg.)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/finish.ts tests/finish.test.ts
-git commit -m "feat: ffmpeg assembler (speed/pad segments, lay voiceover)"
+git add src/ffprobe.ts src/finish.ts tests/finish.test.ts
+git commit -m "feat: ffprobe util + ffmpeg assembler (speed/pad segments, lay voiceover)"
 ```
 
 ---
@@ -637,3 +643,14 @@ git commit -m "feat: make-video skill (thin Y-slice orchestrator)"
 **3. Type consistency:** `Segment` fields (`sourceUsedDuration`, `speedFactor`, `padDuration`, `targetDuration`, `voFile`) are defined in Task 2 and used identically in Tasks 3, 5, 6. `synthesizeChunk`/`planSegments`/`assembleVideo` signatures match across the producing and consuming tasks. ✅
 
 **4. Known follow-ups (next plan):** replace the manual `transcript.json`/`recording.mp4` drop with Tella-MCP ingest; add the real-face intro + faceless outro concat; add captions burned from `script.json`.
+
+---
+
+## Task 5→6 Blockers (from final whole-branch review, 2026-06-18)
+
+Fix before Task 6 wires real recordings into `assembleVideo` (these don't affect the synthetic-fixture tests but surface on real footage):
+
+1. **`-c copy` concat fragility** — segment clips are concat-demuxed with `-c copy`, which requires identical codec params. Real recordings (variable fps/timebase) can cause non-monotonic DTS or A/V drift at joins. Fix: normalize per clip (`-vsync cfr`, pinned profile/level/timebase) or use the `concat` filter with re-encode.
+2. **`-shortest` may truncate narration** — video and audio are concatenated independently; rounding can make the video end a few ms short, and `-shortest` then clips the *audio* (narration), violating content-is-sacred. Fix: guarantee video ≥ audio (pad with `tpad`/`apad`) before muxing.
+
+Deferred Minors (non-blocking): hardcoded `-r 30`; no `workDir` cleanup; strict float-equality branches in `align.ts` (≤7e-15s, absorbed by `toFixed(3)`); placeholder `tests/setup.test.ts`.
