@@ -1,5 +1,6 @@
 import type { ScriptChunk, VoChunk, ZoomPlan, ZoomPlanEntry } from "./types";
 import { clamp, speedFactor } from "./timing";
+import { ffprobeDuration } from "./ffprobe";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -60,4 +61,18 @@ export function planZooms(script: ScriptChunk[], vo?: VoChunk[]): ZoomPlan {
   }
 
   return { zooms, warnings };
+}
+
+// I/O wrapper: read script.json from <dir>, probe any cached vo/<id>.mp3 for
+// durations (best-effort — never synthesizes), and return the plan.
+export async function planZoomsForDir(dir: string): Promise<ZoomPlan> {
+  const script = (await Bun.file(`${dir}/script.json`).json()) as ScriptChunk[];
+  const vo: VoChunk[] = [];
+  for (const c of script) {
+    const f = `${dir}/vo/${c.id}.mp3`;
+    if (await Bun.file(f).exists()) {
+      vo.push({ id: c.id, file: f, duration: await ffprobeDuration(f) });
+    }
+  }
+  return planZooms(script, vo.length ? vo : undefined);
 }
