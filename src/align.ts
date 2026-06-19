@@ -1,9 +1,5 @@
 import type { ScriptChunk, VoChunk, Segment } from "./types";
-
-const MIN_SPEED = 0.5;
-const MAX_SPEED = 2.0;
-
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
+import { speedFactor } from "./timing";
 
 export function planSegments(script: ScriptChunk[], vo: VoChunk[]): Segment[] {
   return script.map((c) => {
@@ -14,13 +10,13 @@ export function planSegments(script: ScriptChunk[], vo: VoChunk[]): Segment[] {
 
     const target = v.duration;
     if (target <= 0) throw new Error(`planSegments: voiceover for chunk ${c.id} has non-positive duration`);
-    const speedFactor = clamp(sourceDuration / target, MIN_SPEED, MAX_SPEED);
-    const afterSpeed = sourceDuration / speedFactor;
+    const sf = speedFactor(sourceDuration, target);
+    const afterSpeed = sourceDuration / sf;
 
     let sourceUsedDuration = sourceDuration;
     let padDuration = 0;
     if (afterSpeed > target) {
-      sourceUsedDuration = target * speedFactor; // trim idle tail
+      sourceUsedDuration = target * sf; // trim idle tail
     } else if (afterSpeed < target) {
       padDuration = target - afterSpeed;          // freeze-pad
     }
@@ -29,7 +25,7 @@ export function planSegments(script: ScriptChunk[], vo: VoChunk[]): Segment[] {
       id: c.id,
       sourceStart: c.sourceStart,
       sourceUsedDuration,
-      speedFactor,
+      speedFactor: sf,
       padDuration,
       targetDuration: target,
       voFile: v.file,
