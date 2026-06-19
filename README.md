@@ -41,7 +41,7 @@
 
 </div>
 
-> **🚧 Status: Design phase.** This document is the validated design + decision record produced through a structured brainstorm and a `/grill-me` stress test. Implementation of the core pipeline (Stages 1–8) is the next step. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC). **Next:** Tella-MCP visual polish (zoom/blur), real-face intro + outro, music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -250,13 +250,19 @@ To de-risk the two unproven assumptions (rambling → a good script; footage↔v
 
 ```
 aimh-video-engine/
-├── .claude/skills/make-video/SKILL.md   # the 8-stage orchestrator playbook
-├── house-style.md                       # living recipe: read every run, updated by retro
-├── config/                              # voice.json · brand.json · youtube.json
-├── assets/                              # logo.png · music/ · outro/
-├── scripts/                            # elevenlabs.ts · cards.ts · finish.ts · publish.ts
-├── videos/<date-slug>/                  # per-video working dir (the data bus)
-├── plan.md                              # future stages 9–12
+├── .claude/skills/make-video/SKILL.md   # the make-video orchestrator skill
+├── src/
+│   ├── types.ts          # shared types
+│   ├── transcript.ts     # transcript loader/validator
+│   ├── align.ts          # planSegments() — sizes footage to voice (the re-sync core)
+│   ├── ffprobe.ts        # ffprobeDuration()
+│   ├── elevenlabs.ts     # synthesizeChunk() — cloned-voice VO (cached)
+│   └── finish.ts         # assembleVideo() — FFmpeg cut/speed/pad/concat/mux
+├── scripts/make-video.ts # CLI: script.json + recording.mp4 -> final.mp4
+├── tests/                # bun tests (align, transcript, finish)
+├── videos/<slug>/        # per-video working dir (gitignored): recording.mp4 · *.srt · script.json · vo/ · final.mp4
+├── docs/plans/           # implementation plans
+├── plan.md               # future stages 9–12
 └── README.md
 ```
 
@@ -266,7 +272,7 @@ aimh-video-engine/
 
 ## Getting Started
 
-> _Planned — the core pipeline is not yet implemented. This section describes the intended setup._
+> The core (thin-slice) pipeline is implemented and runs today. Polish stages (visual editing, intro/outro, music, publish) are in progress.
 
 ### Prerequisites
 
@@ -292,13 +298,14 @@ aimh-video-engine/
 
 ## Usage
 
-> _Planned workflow once implemented._
+**Working today (thin slice):**
 
-1. Throughout the day, record screen segments in Tella while rambling through what you're doing.
-2. Record a ~15s real-face intro clip in Tella.
-3. In Claude Code, run `/make-video`.
-4. Review the generated script (✋), then watch the assembled draft (✋).
-5. The engine schedules the video to YouTube.
+1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
+2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
+3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
+4. The engine synthesizes your cloned voice, re-times the footage to it, and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋).
+
+**Planned:** real-face intro + outro, Tella-MCP zoom/blur, music, chapter cards, accurate caption track, and scheduled YouTube publishing.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -365,7 +372,7 @@ Project Link: [https://github.com/aimhco/aimh-video-engine](https://github.com/a
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[status-shield]: https://img.shields.io/badge/status-design%20phase-orange?style=for-the-badge
+[status-shield]: https://img.shields.io/badge/status-thin%20slice%20working-brightgreen?style=for-the-badge
 [status-url]: #about-the-project
 [license-shield]: https://img.shields.io/github/license/aimhco/aimh-video-engine.svg?style=for-the-badge
 [license-url]: https://github.com/aimhco/aimh-video-engine/blob/main/LICENSE
