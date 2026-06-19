@@ -75,3 +75,9 @@ test("non-positive span is skipped with a warning", () => {
   expect(plan.zooms).toHaveLength(0);
   expect(plan.warnings.some((w) => w.includes("c1"))).toBe(true);
 });
+
+test("plans only the zoomed chunk when chunks are mixed", () => {
+  const plan = planZooms([chunk("c1", 0, 5, {}), chunk("c2", 5, 10)]);
+  expect(plan.zooms).toHaveLength(1);
+  expect(plan.zooms[0]!.chunkId).toBe("c1");
+});
