@@ -22,7 +22,7 @@ async function renderSegment(recording: string, seg: Segment, workDir: string): 
   const clip = `${workDir}/${seg.id}.mp4`;
   const vf = `setpts=PTS/${seg.speedFactor},tpad=stop_mode=clone:stop_duration=${seg.padDuration.toFixed(3)}`;
   await runStage(`render segment ${seg.id}`, () => Bun.$`ffmpeg -y -ss ${seg.sourceStart} -t ${seg.sourceUsedDuration} -i ${recording} \
-    -an -vf ${vf} -r 30 -pix_fmt yuv420p -c:v libx264 ${clip}`.quiet());
+    -an -vf ${vf} -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${clip}`.quiet());
   return clip;
 }
 
@@ -44,7 +44,7 @@ export async function assembleVideo(opts: {
   // length — that way the -shortest mux clips the (padded) video tail, never the narration audio.
   const videoConcat = `${opts.workDir}/video.mp4`;
   await runStage("concat video", () => Bun.$`ffmpeg -y -f concat -safe 0 -i ${listFile} \
-    -vf tpad=stop_mode=clone:stop_duration=0.5 -fps_mode cfr -r 30 -pix_fmt yuv420p -c:v libx264 ${videoConcat}`.quiet());
+    -vf tpad=stop_mode=clone:stop_duration=0.5 -fps_mode cfr -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${videoConcat}`.quiet());
 
   // 3. Concat VO audio.
   const voList = `${opts.workDir}/vo.txt`;
@@ -54,6 +54,6 @@ export async function assembleVideo(opts: {
 
   // 4. Mux video + voiceover; end at the shorter stream.
   await runStage("mux", () => Bun.$`ffmpeg -y -i ${videoConcat} -i ${audioConcat} -map 0:v:0 -map 1:a:0 \
-    -c:v copy -c:a aac -shortest ${opts.out}`.quiet());
+    -c:v copy -c:a aac -b:a 160k -shortest ${opts.out}`.quiet());
   return opts.out;
 }
