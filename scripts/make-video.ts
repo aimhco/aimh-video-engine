@@ -14,8 +14,13 @@ if (!script.length) throw new Error(`${dir}/script.json is empty`);
 await Bun.$`mkdir -p ${dir}/vo`;
 const vo: VoChunk[] = [];
 for (const chunk of script) {
-  console.log(`synthesizing ${chunk.id} (${chunk.text.length} chars)…`);
-  vo.push(await synthesizeChunk(chunk, `${dir}/vo`));
+  const v = await synthesizeChunk(chunk, `${dir}/vo`);
+  console.log(
+    v.cached
+      ? `voiceover ${chunk.id} (cached)`
+      : `synthesized ${chunk.id} (${chunk.text.length} chars)`,
+  );
+  vo.push(v);
 }
 
 const segments = planSegments(script, vo);
