@@ -57,3 +57,34 @@ export async function assembleVideo(opts: {
     -c:v copy -c:a aac -b:a 160k -shortest ${opts.out}`.quiet());
   return opts.out;
 }
+
+// Wrap the body with an optional real-face intro and a reusable faceless outro. Each part keeps its
+// own audio (intro/outro are NOT re-voiced). Parts are normalized to 1080p/30fps (letterboxed if
+// needed) so they concatenate cleanly. With no intro and no outro this is a no-op copy.
+export async function wrapVideo(opts: {
+  body: string; intro?: string; outro?: string; workDir: string; out: string;
+}): Promise<string> {
+  const parts = [opts.intro, opts.body, opts.outro].filter((p): p is string => Boolean(p));
+  if (parts.length === 1) {
+    await Bun.$`cp ${opts.body} ${opts.out}`;
+    return opts.out;
+  }
+  await Bun.$`mkdir -p ${opts.workDir}`;
+  // Build the normalize filter as a single interpolated value so Bun's shell doesn't parse the
+  // parentheses in the pad-centering expression as a subshell.
+  const vf =
+    "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps=30";
+  const normed: string[] = [];
+  let i = 0;
+  for (const part of parts) {
+    const n = `${opts.workDir}/wrap_${i}.mp4`;
+    await runStage(`normalize part ${i}`, () => Bun.$`ffmpeg -y -i ${part} \
+      -vf ${vf} -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 160k -ar 48000 -ac 2 ${n}`.quiet());
+    normed.push(n);
+    i++;
+  }
+  const listFile = `${opts.workDir}/wrap.txt`;
+  await Bun.write(listFile, normed.map(concatLine).join("\n"));
+  await runStage("concat wrap", () => Bun.$`ffmpeg -y -f concat -safe 0 -i ${listFile} -c copy ${opts.out}`.quiet());
+  return opts.out;
+}

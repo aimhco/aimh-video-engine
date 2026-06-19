@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC). **Next:** Tella-MCP visual polish (zoom/blur), real-face intro + outro, music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap. **Next:** Tella-MCP visual polish (zoom/blur), music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -303,9 +303,9 @@ aimh-video-engine/
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
 3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋).
+4. The engine synthesizes your cloned voice, re-times the footage to it, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋).
 
-**Planned:** real-face intro + outro, Tella-MCP zoom/blur, music, chapter cards, accurate caption track, and scheduled YouTube publishing.
+**Planned:** Tella-MCP zoom/blur, music, chapter cards, accurate caption track, and scheduled YouTube publishing.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

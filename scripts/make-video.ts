@@ -1,7 +1,7 @@
 // scripts/make-video.ts — thin Y-slice CLI: script.json + recording.mp4 -> final.mp4
 import { synthesizeChunk } from "../src/elevenlabs";
 import { planSegments } from "../src/align";
-import { assembleVideo } from "../src/finish";
+import { assembleVideo, wrapVideo } from "../src/finish";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const slug = process.argv[2];
@@ -29,10 +29,22 @@ console.table(
   })),
 );
 
-const out = await assembleVideo({
+const body = await assembleVideo({
   recording: `${dir}/recording.mp4`,
   segments,
   workDir: `${dir}/work`,
-  out: `${dir}/final.mp4`,
+  out: `${dir}/body.mp4`,
 });
+
+// Optional: wrap with a per-video real-face intro and a reusable faceless outro (each keeps its own audio).
+const intro = (await Bun.file(`${dir}/intro.mp4`).exists()) ? `${dir}/intro.mp4` : undefined;
+const outro = (await Bun.file(`${dir}/outro.mp4`).exists())
+  ? `${dir}/outro.mp4`
+  : (await Bun.file(`assets/outro.mp4`).exists())
+    ? `assets/outro.mp4`
+    : undefined;
+if (intro) console.log(`+ intro: ${intro}`);
+if (outro) console.log(`+ outro: ${outro}`);
+
+const out = await wrapVideo({ body, intro, outro, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
 console.log(`done → ${out}`);
