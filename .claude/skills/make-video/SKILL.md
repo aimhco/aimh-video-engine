@@ -41,3 +41,12 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 - Voice model: ElevenLabs `eleven_multilingual_v2`. The synthesized audio plays at natural pace; only the *footage* is sped/slowed to match it (no audio time-stretch, no lip-sync — there's no face in the body).
 - Output is 1080p H.264 + AAC; visual quality is set via libx264 `-crf` in `src/finish.ts` (currently `-crf 18`).
 - All inputs/outputs live under `videos/<slug>/`, which is gitignored — the user's recordings stay local.
+
+## Future: auto-zoom via Tella MCP (not yet a pipeline stage)
+
+Zoom/blur are added on the **original** Tella recording (needs Tella's cursor data, which a flat `.mp4` doesn't have), then re-exported before `recording.mp4` enters this pipeline. Zoom/blur are overlays — they don't change clip duration, so re-exporting after adding them keeps cached VO and `script.json` timestamps aligned. Don't trim/cut in Tella; that shifts the timeline.
+
+Lesson from the first manual test (2026-06-18/19): `trackingZoom` (auto cursor-follow) at scale 1.6 over loosely-inferred windows produced visible left-right jitter — small natural mouse movement gets amplified by tracking + zoom. For any future zoom pass:
+- Default to `manualZoom` with a fixed `focusPoint`, not `trackingZoom`, unless cursor-follow is specifically wanted.
+- Use **precise, explicitly-given cues** ("10s in, 5s zoom"), not chapter/transcript-inferred windows.
+- Keep it light: scale ~1.2–1.3, short duration (~5s).
