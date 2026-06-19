@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "make-video": "bun run scripts/make-video.ts",
+    "plan-zooms": "bun run scripts/plan-zooms.ts",
     "test": "bun test"
   },
   "devDependencies": {

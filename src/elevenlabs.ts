@@ -8,7 +8,7 @@ export async function synthesizeChunk(chunk: ScriptChunk, outDir: string): Promi
   // Idempotent: reuse an already-synthesized clip (delete the vo/ dir to force re-synthesis
   // after editing a chunk's text).
   if (await Bun.file(file).exists()) {
-    return { id: chunk.id, file, duration: await ffprobeDuration(file) };
+    return { id: chunk.id, file, duration: await ffprobeDuration(file), cached: true };
   }
 
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -28,5 +28,5 @@ export async function synthesizeChunk(chunk: ScriptChunk, outDir: string): Promi
 
   await Bun.write(file, await res.arrayBuffer());
   const duration = await ffprobeDuration(file);
-  return { id: chunk.id, file, duration };
+  return { id: chunk.id, file, duration, cached: false };
 }

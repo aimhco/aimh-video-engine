@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap. **Next:** Tella-MCP visual polish (zoom/blur), music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). **Next:** Tella-MCP blur/layouts/chapter cards, music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -127,9 +127,9 @@ Eight stages. Two human review checkpoints (✋), one human recording step (🎬
         │         narration, grounded strictly in the transcript.   ✋ you edit
  3. VOICE         ElevenLabs → one VO clip per chunk in your cloned voice
         │         (durations drive the visual timing).
- 4. VISUAL EDIT   Tella MCP per segment: screen-only layout · trackingZoom ·
+ 4. VISUAL EDIT   Tella MCP: auto-zoom (declarative manualZoom cues) ·
    (Tella MCP)    blur secrets · highlights · transitions · animated chapter
-        │         cards · size footage to VO duration · remove fillers/silence.
+        │         cards · screen-only layout.   (zoom built; rest planned)
  5. ASSEMBLE+MUX  Tella export (4K, muted) → FFmpeg: lay VO · music bed ·
    (Tella+ffmpeg) logo overlay · burn captions from script · prepend 🎬 real-face
         │         intro · append faceless reusable outro.
@@ -206,7 +206,7 @@ For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.
 | 1. Ingest | `make-video` skill (Tella MCP) | Tella clips → `transcript.json` |
 | 2. Script | Claude ✋ | `transcript.json` → `script.md` (chunked) |
 | 3. Voice | `scripts/elevenlabs.ts` | `script.md` → `vo/*.mp3` + `durations.json` |
-| 4. Visual edit | Claude (Tella MCP) | clips + durations → `visuals.mp4` (muted) |
+| 4. Visual edit | `scripts/plan-zooms.ts` + Claude (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4` (zoom built; blur/layouts/cards planned) |
 | 5. Mux | `scripts/finish.ts` (FFmpeg) | visuals + VO + music + logo + captions + intro + outro → `final.mp4` |
 | 6. QA | Claude ✋ | `final.mp4` → checks pass / fixes |
 | 7. Publish | `scripts/publish.ts` (YouTube API) | `final.mp4` + `metadata.json` → scheduled video |
@@ -272,7 +272,7 @@ aimh-video-engine/
 
 ## Getting Started
 
-> The core (thin-slice) pipeline is implemented and runs today. Polish stages (visual editing, intro/outro, music, publish) are in progress.
+> The core (thin-slice) pipeline is implemented and runs today, plus the intro/outro wrap and **per-chunk auto-zoom** (Stage 4). Remaining polish stages (blur/layouts/chapter cards, music, captions, publish) are in progress.
 
 ### Prerequisites
 
