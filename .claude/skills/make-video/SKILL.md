@@ -42,11 +42,29 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 - Output is 1080p H.264 + AAC; visual quality is set via libx264 `-crf` in `src/finish.ts` (currently `-crf 18`).
 - All inputs/outputs live under `videos/<slug>/`, which is gitignored — the user's recordings stay local.
 
-## Future: auto-zoom via Tella MCP (not yet a pipeline stage)
+## Stage 4 — auto-zoom via Tella MCP
 
-Zoom/blur are added on the **original** Tella recording (needs Tella's cursor data, which a flat `.mp4` doesn't have), then re-exported before `recording.mp4` enters this pipeline. Zoom/blur are overlays — they don't change clip duration, so re-exporting after adding them keeps cached VO and `script.json` timestamps aligned. Don't trim/cut in Tella; that shifts the timeline.
+Zoom is added on the **original** Tella recording (it needs Tella's cursor data, which a flat `.mp4` lacks), then re-exported before `recording.mp4` enters this pipeline. Zoom is an overlay — it does **not** change clip duration, so re-exporting keeps cached VO and `script.json` timestamps aligned. **Never trim/cut in Tella** — that shifts the timeline.
 
-Lesson from the first manual test (2026-06-18/19): `trackingZoom` (auto cursor-follow) at scale 1.6 over loosely-inferred windows produced visible left-right jitter — small natural mouse movement gets amplified by tracking + zoom. For any future zoom pass:
-- Default to `manualZoom` with a fixed `focusPoint`, not `trackingZoom`, unless cursor-follow is specifically wanted.
-- Use **precise, explicitly-given cues** ("10s in, 5s zoom"), not chapter/transcript-inferred windows.
-- Keep it light: scale ~1.2–1.3, short duration (~5s).
+**Author zoom cues** in `script.json` by adding a `zoom` field to any chunk. The zoom spans that chunk's whole `sourceStart…sourceEnd`:
+
+```json
+{ "id": "c09", "text": "Tella is an all-in-one…",
+  "sourceStart": 56.86, "sourceEnd": 71.58,
+  "zoom": { "scale": 1.25, "focusPct": [50, 40] } }
+```
+
+- `scale` — optional, default `1.25`. Keep it light; above `1.5` warns "may feel heavy" (Tella max `4`).
+- `focusPct` — optional `[x, y]` (0–100), default `[50, 50]` (center).
+- Always applied as `manualZoom` (steady). For finer control than a whole chunk, split the chunk.
+
+**Plan the zooms:** `bun run plan-zooms <slug>` reads `script.json`, writes `videos/<slug>/zoom-plan.json`, and prints a table. If the chunk's VO is already synthesized, it also shows `estFinal` — how long the zoom plays in the final cut (a zoom inside a sped-up segment plays faster).
+
+**Apply via Tella MCP** (this skill, on the user's confirmation):
+1. Resolve the Tella project: read `videos/<slug>/tella.json` `{ videoId, clipId }` if present; otherwise find it with `list_videos` (match by name) + `list_clips`, and write `tella.json` for next time.
+2. Clear existing zooms so re-applying never stacks: `list_zooms` → `remove_zoom` for each.
+3. For each entry in `zoom-plan.json`, call `add_zoom` (`type: manualZoom`, its `startTimeMs`, `durationMs`, `scale`, `focusPoint`).
+4. `export_video` (1080p), poll to completion, download, and swap the result in as `videos/<slug>/recording.mp4`.
+5. Run `bun run make-video <slug>` — VO is a $0 cache hit; only ffmpeg re-assembly runs.
+
+Lesson from the first manual test (2026-06): `trackingZoom` at scale 1.6 jittered (it amplifies small mouse motion). This workflow uses `manualZoom` with precise, chunk-scoped cues to stay steady.
