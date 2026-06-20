@@ -7,6 +7,12 @@ import { FFMPEG } from "./ffmpeg";
 const CAPTION_STYLE =
   "FontName=Arial,FontSize=18,PrimaryColour=&H00FFFFFF,BorderStyle=3,BackColour=&H80000000,Outline=1,Shadow=0,Alignment=2,MarginV=40";
 
+// Logo watermark: small, top-right, slightly transparent. Output is always 1080p,
+// so a fixed pixel width is fine. The PNG is opaque, so add alpha before setting it.
+const LOGO_WIDTH = 150;    // px (~8% of 1920)
+const LOGO_MARGIN = 24;    // px from the top/right edges
+const LOGO_OPACITY = 0.85;
+
 // A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
 function subtitlesClause(captionsFile: string): string {
   const p = captionsFile.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
@@ -98,5 +104,16 @@ export async function wrapVideo(opts: {
   const listFile = `${opts.workDir}/wrap.txt`;
   await Bun.write(listFile, normed.map(concatLine).join("\n"));
   await runStage("concat wrap", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${listFile} -c copy ${opts.out}`.quiet());
+  return opts.out;
+}
+
+// Overlay a logo as a top-right watermark over the whole video. Re-encodes video,
+// copies audio. ffmpeg can't read+write the same path — caller passes a distinct out.
+export async function overlayLogo(opts: { video: string; logo: string; out: string }): Promise<string> {
+  const filter =
+    `[1:v]scale=${LOGO_WIDTH}:-1,format=rgba,colorchannelmixer=aa=${LOGO_OPACITY}[lg];` +
+    `[0:v][lg]overlay=W-w-${LOGO_MARGIN}:${LOGO_MARGIN}`;
+  await runStage("overlay logo", () => Bun.$`${FFMPEG} -y -i ${opts.video} -i ${opts.logo} \
+    -filter_complex ${filter} -map 0:a -c:a copy -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p ${opts.out}`.quiet());
   return opts.out;
 }
