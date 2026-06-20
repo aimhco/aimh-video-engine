@@ -28,3 +28,5 @@ export interface Segment {
   targetDuration: number;
   voFile: string;
 }
+
+export interface CaptionCue { startSec: number; endSec: number; text: string }
