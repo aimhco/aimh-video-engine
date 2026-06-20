@@ -30,7 +30,7 @@ async function runStage(stage: string, build: () => Promise<unknown>): Promise<v
   try {
     await build();
   } catch (err) {
-    throw new Error(`assembleVideo: ffmpeg failed during ${stage}: ${(err as Error).message}`);
+    throw new Error(`ffmpeg failed during ${stage}: ${(err as Error).message}`);
   }
 }
 
