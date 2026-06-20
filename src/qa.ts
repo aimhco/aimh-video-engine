@@ -1,3 +1,8 @@
+import { ffprobeDuration, ffprobeVideoSize, ffprobeHasAudio } from "./ffprobe";
+import { FFMPEG } from "./ffmpeg";
+import { planCaptions } from "./captions";
+import type { ScriptChunk, VoChunk } from "./types";
+
 export interface QaCheck { name: string; pass: boolean; detail: string }
 export interface QaReport { checks: QaCheck[]; ok: boolean }
 export interface QaInputs {
@@ -64,4 +69,43 @@ export function evaluateQa(i: QaInputs): QaReport {
   }
 
   return { checks, ok: checks.every((c) => c.pass) };
+}
+
+// I/O: probe videos/<slug>/final.mp4 and surrounding files, then evaluate.
+export async function runQa(dir: string): Promise<QaReport> {
+  const final = `${dir}/final.mp4`;
+  if (!(await Bun.file(final).exists())) throw new Error(`runQa: ${final} not found — run make-video first`);
+
+  const script = (await Bun.file(`${dir}/script.json`).json()) as ScriptChunk[];
+
+  const vo: VoChunk[] = [];
+  for (const c of script) {
+    const f = `${dir}/vo/${c.id}.mp3`;
+    vo.push({ id: c.id, file: f, duration: await ffprobeDuration(f) });
+  }
+  let expectedDurationSec = vo.reduce((n, v) => n + v.duration, 0);
+
+  const intro = `${dir}/intro.mp4`;
+  if (await Bun.file(intro).exists()) expectedDurationSec += await ffprobeDuration(intro);
+  const outroLocal = `${dir}/outro.mp4`;
+  const outroAsset = "assets/outro.mp4";
+  if (await Bun.file(outroLocal).exists()) expectedDurationSec += await ffprobeDuration(outroLocal);
+  else if (await Bun.file(outroAsset).exists()) expectedDurationSec += await ffprobeDuration(outroAsset);
+
+  const finalDurationSec = await ffprobeDuration(final);
+  const { width, height } = await ffprobeVideoSize(final);
+  const hasAudio = await ffprobeHasAudio(final);
+
+  const vd = await Bun.$`${FFMPEG} -i ${final} -af volumedetect -f null -`.quiet().nothrow();
+  const meanVolumeDb = parseMeanVolumeDb(vd.stderr.toString());
+
+  const srtPath = `${dir}/captions.srt`;
+  const captionsPresent = await Bun.file(srtPath).exists();
+  const srtCueCount = captionsPresent ? parseSrtCueCount(await Bun.file(srtPath).text()) : 0;
+  const expectedCueCount = planCaptions(script, vo).length;
+
+  return evaluateQa({
+    finalDurationSec, expectedDurationSec, width, height, hasAudio,
+    meanVolumeDb, captionsPresent, srtCueCount, expectedCueCount,
+  });
 }
