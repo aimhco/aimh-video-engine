@@ -1,6 +1,17 @@
 // src/finish.ts
 import { resolve } from "node:path";
 import type { Segment } from "./types";
+import { FFMPEG } from "./ffmpeg";
+
+// Clean subtitle-bar style for burned-in captions (libass force_style).
+const CAPTION_STYLE =
+  "FontName=Arial,FontSize=18,PrimaryColour=&H00FFFFFF,BorderStyle=3,BackColour=&H80000000,Outline=1,Shadow=0,Alignment=2,MarginV=40";
+
+// A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
+function subtitlesClause(captionsFile: string): string {
+  const p = captionsFile.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
+  return `,subtitles='${p}':force_style='${CAPTION_STYLE}'`;
+}
 
 // A concat-demuxer list line: an ABSOLUTE path (list entries otherwise resolve relative to the
 // list file's own directory, not the cwd) with single quotes escaped (' -> '\'').
@@ -21,13 +32,13 @@ async function runStage(stage: string, build: () => Promise<unknown>): Promise<v
 async function renderSegment(recording: string, seg: Segment, workDir: string): Promise<string> {
   const clip = `${workDir}/${seg.id}.mp4`;
   const vf = `setpts=PTS/${seg.speedFactor},tpad=stop_mode=clone:stop_duration=${seg.padDuration.toFixed(3)}`;
-  await runStage(`render segment ${seg.id}`, () => Bun.$`ffmpeg -y -ss ${seg.sourceStart} -t ${seg.sourceUsedDuration} -i ${recording} \
+  await runStage(`render segment ${seg.id}`, () => Bun.$`${FFMPEG} -y -ss ${seg.sourceStart} -t ${seg.sourceUsedDuration} -i ${recording} \
     -an -vf ${vf} -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${clip}`.quiet());
   return clip;
 }
 
 export async function assembleVideo(opts: {
-  recording: string; segments: Segment[]; workDir: string; out: string;
+  recording: string; segments: Segment[]; workDir: string; out: string; captionsFile?: string;
 }): Promise<string> {
   if (opts.segments.length === 0) throw new Error("assembleVideo: no segments provided");
   await Bun.$`mkdir -p ${opts.workDir}`;
@@ -43,17 +54,18 @@ export async function assembleVideo(opts: {
   // clean CFR 30fps stream, and freeze-pad the tail by 0.5s so the video is always >= the voiceover
   // length — that way the -shortest mux clips the (padded) video tail, never the narration audio.
   const videoConcat = `${opts.workDir}/video.mp4`;
-  await runStage("concat video", () => Bun.$`ffmpeg -y -f concat -safe 0 -i ${listFile} \
-    -vf tpad=stop_mode=clone:stop_duration=0.5 -fps_mode cfr -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${videoConcat}`.quiet());
+  const vf = `tpad=stop_mode=clone:stop_duration=0.5${opts.captionsFile ? subtitlesClause(opts.captionsFile) : ""}`;
+  await runStage("concat video", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${listFile} \
+    -vf ${vf} -fps_mode cfr -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${videoConcat}`.quiet());
 
   // 3. Concat VO audio.
   const voList = `${opts.workDir}/vo.txt`;
   await Bun.write(voList, opts.segments.map((s) => concatLine(s.voFile)).join("\n"));
   const audioConcat = `${opts.workDir}/audio.mp3`;
-  await runStage("concat audio", () => Bun.$`ffmpeg -y -f concat -safe 0 -i ${voList} -c copy ${audioConcat}`.quiet());
+  await runStage("concat audio", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${voList} -c copy ${audioConcat}`.quiet());
 
   // 4. Mux video + voiceover; end at the shorter stream.
-  await runStage("mux", () => Bun.$`ffmpeg -y -i ${videoConcat} -i ${audioConcat} -map 0:v:0 -map 1:a:0 \
+  await runStage("mux", () => Bun.$`${FFMPEG} -y -i ${videoConcat} -i ${audioConcat} -map 0:v:0 -map 1:a:0 \
     -c:v copy -c:a aac -b:a 160k -shortest ${opts.out}`.quiet());
   return opts.out;
 }
@@ -78,13 +90,13 @@ export async function wrapVideo(opts: {
   let i = 0;
   for (const part of parts) {
     const n = `${opts.workDir}/wrap_${i}.mp4`;
-    await runStage(`normalize part ${i}`, () => Bun.$`ffmpeg -y -i ${part} \
+    await runStage(`normalize part ${i}`, () => Bun.$`${FFMPEG} -y -i ${part} \
       -vf ${vf} -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 160k -ar 48000 -ac 2 ${n}`.quiet());
     normed.push(n);
     i++;
   }
   const listFile = `${opts.workDir}/wrap.txt`;
   await Bun.write(listFile, normed.map(concatLine).join("\n"));
-  await runStage("concat wrap", () => Bun.$`ffmpeg -y -f concat -safe 0 -i ${listFile} -c copy ${opts.out}`.quiet());
+  await runStage("concat wrap", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${listFile} -c copy ${opts.out}`.quiet());
   return opts.out;
 }
