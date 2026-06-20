@@ -2,6 +2,7 @@
 import { synthesizeChunk } from "../src/elevenlabs";
 import { planSegments } from "../src/align";
 import { assembleVideo, wrapVideo } from "../src/finish";
+import { planCaptions, toSrt } from "../src/captions";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const slug = process.argv[2];
@@ -23,6 +24,18 @@ for (const chunk of script) {
   vo.push(v);
 }
 
+// Captions: burn the script narration onto the body, timed to the VO. On by default; --no-captions skips.
+const captionsEnabled = !process.argv.includes("--no-captions");
+let captionsFile: string | undefined;
+if (captionsEnabled) {
+  const cues = planCaptions(script, vo);
+  if (cues.length) {
+    captionsFile = `${dir}/captions.srt`;
+    await Bun.write(captionsFile, toSrt(cues));
+    console.log(`+ captions: ${cues.length} cues → ${captionsFile}`);
+  }
+}
+
 const segments = planSegments(script, vo);
 console.table(
   segments.map((s) => ({
@@ -39,6 +52,7 @@ const body = await assembleVideo({
   segments,
   workDir: `${dir}/work`,
   out: `${dir}/body.mp4`,
+  captionsFile,
 });
 
 // Optional: wrap with a per-video real-face intro and a reusable faceless outro (each keeps its own audio).
