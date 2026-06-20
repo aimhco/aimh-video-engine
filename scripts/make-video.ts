@@ -1,7 +1,7 @@
 // scripts/make-video.ts — thin Y-slice CLI: script.json + recording.mp4 -> final.mp4
 import { synthesizeChunk } from "../src/elevenlabs";
 import { planSegments } from "../src/align";
-import { assembleVideo, wrapVideo } from "../src/finish";
+import { assembleVideo, wrapVideo, overlayLogo } from "../src/finish";
 import { planCaptions, toSrt } from "../src/captions";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
@@ -66,4 +66,15 @@ if (intro) console.log(`+ intro: ${intro}`);
 if (outro) console.log(`+ outro: ${outro}`);
 
 const out = await wrapVideo({ body, intro, outro, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
+
+// Branding: overlay the logo watermark over the whole final video. On by default; --no-logo skips.
+const logoEnabled = !process.argv.includes("--no-logo");
+const logo = logoEnabled && (await Bun.file("assets/logo.png").exists()) ? "assets/logo.png" : undefined;
+if (logo) {
+  const tmp = `${dir}/work/logo.mp4`;
+  await overlayLogo({ video: out, logo, out: tmp });
+  await Bun.$`mv ${tmp} ${out}`;
+  console.log(`+ logo: ${logo}`);
+}
+
 console.log(`done → ${out}`);
