@@ -1,6 +1,8 @@
+import { FFPROBE } from "./ffmpeg";
+
 export async function ffprobeDuration(path: string): Promise<number> {
   const proc = Bun.spawn([
-    "ffprobe", "-v", "error", "-show_entries", "format=duration",
+    FFPROBE, "-v", "error", "-show_entries", "format=duration",
     "-of", "default=noprint_wrappers=1:nokey=1", path,
   ]);
   const out = await new Response(proc.stdout).text();

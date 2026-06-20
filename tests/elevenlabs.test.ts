@@ -1,11 +1,12 @@
 import { beforeAll, expect, test } from "bun:test";
 import { synthesizeChunk } from "../src/elevenlabs";
+import { FFMPEG } from "../src/ffmpeg";
 
 const dir = `${import.meta.dir}/fixtures/elevenlabs`;
 
 beforeAll(async () => {
   await Bun.$`mkdir -p ${dir}`;
-  await Bun.$`ffmpeg -y -f lavfi -i sine=frequency=440:duration=1 ${dir}/c1.mp3`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i sine=frequency=440:duration=1 ${dir}/c1.mp3`.quiet();
 });
 
 test("returns cached:true without calling the API when the mp3 already exists", async () => {

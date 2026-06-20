@@ -2,14 +2,15 @@
 import { expect, test } from "bun:test";
 import { wrapVideo } from "../src/finish";
 import { ffprobeDuration } from "../src/ffprobe";
+import { FFMPEG } from "../src/ffmpeg";
 
 // Intro/body/outro deliberately have different resolutions to exercise normalization + padding.
 test("wrapVideo concatenates intro + body + outro (durations add up)", async () => {
   const dir = `${import.meta.dir}/fixtures/wrap`;
   await Bun.$`mkdir -p ${dir}/work`;
-  await Bun.$`ffmpeg -y -f lavfi -i color=c=blue:s=640x360:d=2 -f lavfi -i sine=frequency=440:duration=2 -pix_fmt yuv420p -c:a aac -shortest ${dir}/body.mp4`.quiet();
-  await Bun.$`ffmpeg -y -f lavfi -i color=c=red:s=1280x720:d=1 -f lavfi -i sine=frequency=330:duration=1 -pix_fmt yuv420p -c:a aac -shortest ${dir}/intro.mp4`.quiet();
-  await Bun.$`ffmpeg -y -f lavfi -i color=c=green:s=1920x1080:d=1 -f lavfi -i sine=frequency=550:duration=1 -pix_fmt yuv420p -c:a aac -shortest ${dir}/outro.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=640x360:d=2 -f lavfi -i sine=frequency=440:duration=2 -pix_fmt yuv420p -c:a aac -shortest ${dir}/body.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=red:s=1280x720:d=1 -f lavfi -i sine=frequency=330:duration=1 -pix_fmt yuv420p -c:a aac -shortest ${dir}/intro.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=green:s=1920x1080:d=1 -f lavfi -i sine=frequency=550:duration=1 -pix_fmt yuv420p -c:a aac -shortest ${dir}/outro.mp4`.quiet();
 
   const out = await wrapVideo({
     body: `${dir}/body.mp4`,

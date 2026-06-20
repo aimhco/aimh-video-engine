@@ -13,8 +13,8 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 
 ## Prerequisites
 
-- Run from the `aimh-video-engine` repo (Bun + FFmpeg installed).
-- `.env` with `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` (a cloned voice).
+- Run from the `aimh-video-engine` repo (Bun + FFmpeg installed). Captions need a **libass-enabled** ffmpeg (`ffmpeg -version | grep libass`); if absent, install `ffmpeg-full` and set `FFMPEG`/`FFPROBE` in `.env` to its binaries.
+- `.env` with `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` (a cloned voice). Optional `FFMPEG`/`FFPROBE` override the ffmpeg/ffprobe binary paths.
 - In `videos/<slug>/`: the recording as `recording.mp4` and the Tella subtitle export as a `.srt` file.
 
 ## Steps

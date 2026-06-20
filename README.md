@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). **Next:** Tella-MCP blur/layouts/chapter cards, music, accurate caption track, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing) and **burned-in captions** generated from the script + voice timing. **Next:** Tella-MCP blur/layouts/chapter cards, music, word-level caption timing, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -277,7 +277,7 @@ aimh-video-engine/
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (JavaScript/TypeScript runtime)
-- [FFmpeg](https://ffmpeg.org/download.html) (`brew install ffmpeg`)
+- [FFmpeg](https://ffmpeg.org/download.html) **with libass** (needed to burn captions). `brew install ffmpeg` usually includes it — check with `ffmpeg -version | grep libass`. If yours doesn't (e.g. a minimal build), install the fuller `ffmpeg-full` formula and point `FFMPEG`/`FFPROBE` at it (see Environment Variables).
 - [Claude Code](https://claude.com/claude-code)
 - A [Tella](https://www.tella.com/) account (Pro) with the MCP connected
 - An [ElevenLabs](https://elevenlabs.io/) account (Creator) with a cloned voice
@@ -291,6 +291,7 @@ aimh-video-engine/
 | `ELEVENLABS_VOICE_ID` | Your cloned voice id |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | YouTube Data API OAuth |
 | `YOUTUBE_REFRESH_TOKEN` | Long-lived YouTube auth token |
+| `FFMPEG` / `FFPROBE` | Optional. Paths to the ffmpeg/ffprobe binaries; default to those on `PATH`. Set these to a libass-enabled build (e.g. `/usr/local/opt/ffmpeg-full/bin/ffmpeg`) if your default ffmpeg lacks libass. |
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -303,9 +304,9 @@ aimh-video-engine/
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
 3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋).
+4. The engine synthesizes your cloned voice, re-times the footage to it, burns in captions from the script, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--no-captions` skips captions.)
 
-**Planned:** Tella-MCP zoom/blur, music, chapter cards, accurate caption track, and scheduled YouTube publishing.
+**Planned:** Tella-MCP blur/layouts/chapter cards, music, word-level caption timing, and scheduled YouTube publishing.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
