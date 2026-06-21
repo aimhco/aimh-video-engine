@@ -14,6 +14,8 @@ const LOGO_WIDTH = 150;    // px (~8% of 1920)
 const LOGO_MARGIN = 24;    // px from the top/right edges
 const LOGO_OPACITY = 0.85;
 const EXTERNAL_AUDIO_FILTER = "loudnorm=I=-18:TP=-2:LRA=11";
+const INTRO_MUSIC_DB = -18;
+const INTRO_MUSIC_FADE_SEC = 1.0;
 
 // A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
 function subtitlesClause(captionsFile: string): string {
@@ -126,6 +128,27 @@ export async function overlayLogo(opts: { video: string; logo: string; out: stri
     `[0:v][lg]overlay=W-w-${LOGO_MARGIN}:${LOGO_MARGIN}`;
   await runStage("overlay logo", () => Bun.$`${FFMPEG} -y -i ${opts.video} -i ${opts.logo} \
     -filter_complex ${filter} -map 0:a -c:a copy -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p ${opts.out}`.quiet());
+  return opts.out;
+}
+
+// Mix a quiet music bed under an existing clip, keeping the original video stream.
+// Used for spoken intros where the voice remains primary and music sits underneath.
+export async function mixMusicUnderVideo(opts: {
+  video: string; musicFile: string; out: string; volumeDb?: number; fadeSec?: number; musicOffsetSec?: number;
+}): Promise<string> {
+  const dur = await ffprobeDuration(opts.video);
+  const fade = opts.fadeSec ?? INTRO_MUSIC_FADE_SEC;
+  const outFade = Math.max(0, dur - fade).toFixed(2);
+  const music = `afade=t=in:st=0:d=${fade},afade=t=out:st=${outFade}:d=${fade},volume=${opts.volumeDb ?? INTRO_MUSIC_DB}dB`;
+  if (await ffprobeHasAudio(opts.video)) {
+    const filter = `[1:a]${music}[music];[0:a][music]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,aresample=48000[a]`;
+    await runStage("mix intro music", () => Bun.$`${FFMPEG} -y -i ${opts.video} -stream_loop -1 -ss ${opts.musicOffsetSec ?? 0} -t ${dur} -i ${opts.musicFile} \
+      -filter_complex ${filter} -map 0:v:0 -map "[a]" -c:v copy -c:a aac -b:a 160k -ar 48000 -ac 2 -shortest ${opts.out}`.quiet());
+  } else {
+    const filter = `[1:a]${music},aresample=48000[a]`;
+    await runStage("mix intro music", () => Bun.$`${FFMPEG} -y -i ${opts.video} -stream_loop -1 -ss ${opts.musicOffsetSec ?? 0} -t ${dur} -i ${opts.musicFile} \
+      -filter_complex ${filter} -map 0:v:0 -map "[a]" -c:v copy -c:a aac -b:a 160k -ar 48000 -ac 2 -shortest ${opts.out}`.quiet());
+  }
   return opts.out;
 }
 

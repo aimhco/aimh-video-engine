@@ -1,6 +1,6 @@
 // tests/wrap.test.ts
 import { expect, test } from "bun:test";
-import { wrapVideo } from "../src/finish";
+import { mixMusicUnderVideo, wrapVideo } from "../src/finish";
 import { ffprobeDuration } from "../src/ffprobe";
 import { FFMPEG } from "../src/ffmpeg";
 
@@ -53,4 +53,25 @@ test("wrapVideo makes a quiet spoken intro audible", async () => {
   });
 
   expect(await meanVolumeDb(out, 0, 1)).toBeGreaterThan(-30);
+});
+
+test("mixMusicUnderVideo adds a quiet music bed under an intro clip", async () => {
+  const dir = `${import.meta.dir}/fixtures/intro-music`;
+  await Bun.$`mkdir -p ${dir}`;
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=red:s=1280x720:d=2 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000:d=2 -pix_fmt yuv420p -c:v libx264 -c:a aac -shortest ${dir}/intro.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i sine=frequency=880:duration=2 -c:a aac ${dir}/music.m4a`.quiet();
+
+  const out = await mixMusicUnderVideo({
+    video: `${dir}/intro.mp4`,
+    musicFile: `${dir}/music.m4a`,
+    out: `${dir}/intro-music.mp4`,
+    volumeDb: -10,
+    fadeSec: 0.1,
+  });
+
+  const dur = await ffprobeDuration(out);
+  expect(dur).toBeGreaterThan(1.8);
+  expect(dur).toBeLessThan(2.3);
+  expect(await meanVolumeDb(out, 0, 2)).toBeGreaterThan(-50);
+  expect(await meanVolumeDb(out, 0, 2)).toBeLessThan(-20);
 });
