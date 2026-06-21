@@ -20,7 +20,7 @@
     <strong>Ramble at your screen. Get a finished YouTube video. Automatically.</strong>
     <br />
     A Claude Code pipeline that turns daily screen recordings + messy narration into a
-    polished, narrated, captioned, branded video — and schedules it to YouTube.
+    polished, narrated, branded video — and schedules it to YouTube.
     <br />
     <br />
     <a href="#how-it-works"><strong>See how it works »</strong></a>
@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing) and **burned-in captions** generated from the script + voice timing. **Next:** Tella-MCP blur/layouts/chapter cards, music, word-level caption timing, and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap → logo overlay → music bed under intro/chapter cards → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. **Next:** active Tella-MCP blur application in a fresh MCP-enabled session and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -84,7 +84,7 @@
 
 Making a single tutorial video by hand took **hours** — retakes, editing, fighting a timeline. The kind of work that makes you ship *one video every few months*, or none at all.
 
-**aimh-video-engine** removes the part that hurts. You share your screen, ramble through what you're doing (mistakes and all), and the engine produces a finished video: a clean voiceover in your own cloned voice, tight pacing, auto-zooms, captions, chapter cards, music, your logo — scheduled to YouTube. The only on-camera moment is a short, freely-spoken intro showing your real face.
+**aimh-video-engine** removes the part that hurts. You share your screen, ramble through what you're doing (mistakes and all), and the engine produces a finished video: a clean voiceover in your own cloned voice, tight pacing, auto-zooms, optional captions, chapter cards, music, your logo — scheduled to YouTube. The only on-camera moment is a short, freely-spoken intro showing your real face.
 
 ### The Inspiration
 
@@ -105,7 +105,7 @@ aimh-video-engine is a **hybrid**: the **screen recording is the content**, and 
 | [Claude Code](https://claude.com/claude-code) | Orchestrator + scriptwriter + QA (the brain) |
 | [Tella](https://www.tella.com/) (+ [MCP](https://www.tella.com/docs/mcp-server)) | Screen recording, visual editing, the automation surface |
 | [ElevenLabs](https://elevenlabs.io/) | Your cloned voice (Multilingual v2 default) |
-| [FFmpeg](https://ffmpeg.org/) | Voiceover mux, music bed, logo overlay, burned captions |
+| [FFmpeg](https://ffmpeg.org/) | Voiceover mux, music bed, logo overlay, optional burned captions |
 | [YouTube Data API](https://developers.google.com/youtube/v3) | Scheduled publishing (`private` + `publishAt`) |
 | CleanShotX | Optional quick screen grabs |
 
@@ -128,13 +128,14 @@ Eight stages. Two human review checkpoints (✋), one human recording step (🎬
  3. VOICE         ElevenLabs → one VO clip per chunk in your cloned voice
         │         (durations drive the visual timing).
  4. VISUAL EDIT   Tella MCP: auto-zoom (declarative manualZoom cues) ·
-   (Tella MCP)    blur secrets · highlights · transitions · animated chapter
-        │         cards · screen-only layout.   (zoom built; rest planned)
+   (Tella MCP)    fullscreen screen-only body layout · blur secrets ·
+        │         highlights.   (zoom/layout convention built; blur next)
  5. ASSEMBLE+MUX  Tella export (4K, muted) → FFmpeg: lay VO · music bed ·
-   (Tella+ffmpeg) logo overlay · burn captions from script · prepend 🎬 real-face
-        │         intro · append faceless reusable outro.
+   (Tella+ffmpeg) logo overlay · optional captions · 3.5s chapter cards ·
+        │         prepend 🎬 real-face intro · append reusable outro.
  6. QA            Claude renders frames + checks: durations align, captions
-        │         match, secrets blurred, audio levels sane → auto-fix.  ✋ you watch
+        │         match if enabled, secrets blurred, audio levels sane
+        │         → auto-fix.  ✋ you watch
  7. PUBLISH       YouTube Data API: title + description (auto chapters),
         │         privacyStatus=private + publishAt → scheduled, auto-public.
  8. RETRO         Claude proposes updates to house-style.md so the same
@@ -158,12 +159,12 @@ Every major fork, with the reasoning. This is the project's decision record.
 | 1 | **No HeyGen avatar** | For a screen-first / PiP format, a corner avatar is the worst-value spend. Tella records a real webcam face for free, which is more authentic for a small technical channel. Saved ~$29/mo + ~$18/video. |
 | 2 | **Faceless body** | You cannot have a real talking face *and* a rewritten voice — lips won't match. So the body shows the screen only; the cleaned voiceover plays over it. |
 | 3 | **Voiceover from a rewritten script ("Y-path")** | The whole point is to *ramble freely* while recording, then let Claude rewrite and a cloned voice deliver it. Cleaning your raw audio ("X-path") was **rejected** — for this creator the hard part is *performing*, not editing. |
-| 4 | **Real-face intro, faceless reusable outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. The outro is a faceless branded end-card — no face means no clothing mismatch, so it's reusable forever. |
-| 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur, captions). Dropping it to save $19 would forfeit both. CleanShotX kept for quick grabs only. |
+| 4 | **Real-face intro, reusable outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. Current convention: intro is face-only inside the blue grid frame. The reusable outro should be a fullscreen faceless branded end-card, but the pipeline appends whichever `outro.mp4` is supplied. |
+| 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur/highlights). Dropping it to save $19 would forfeit both. CleanShotX kept for quick grabs only. |
 | 6 | **Claude orchestrates and writes the script (not ChatGPT)** | Claude is already the harness with the tools; routing the script to ChatGPT adds a key + cost + a copy-paste seam for no gain. Transcription is free from Tella. |
 | 7 | **ElevenLabs for voice (Multilingual v2)** | Replaces HeyGen's voice role — *not* an added subscription. v2 for consistent narration; Eleven v3 optional for more expression. |
-| 8 | **FFmpeg for audio + branding** | Tella's MCP can't replace audio or add music, so FFmpeg muxes the VO, mixes a music bed (intro/outro/cards, dry under body, from a curated royalty-free library), overlays the logo, and burns captions from the script. |
-| 9 | **Animated chapter cards generated as code** | Tella has no native title-card creation. Claude renders branded animated cards → MP4 → inserts as clips. Replaces the manual Google Slides → PNG step; timestamps also auto-fill YouTube description chapters. |
+| 8 | **FFmpeg for audio + branding** | Tella's MCP can't replace audio or add music, so FFmpeg muxes the VO, normalizes intro/outro audio, mixes a music bed under the spoken intro and transition cards, overlays the logo, and can burn captions when `--captions` is explicitly requested. |
+| 9 | **Animated chapter cards generated as code** | Tella has no native title-card creation. Claude renders branded 3.5s animated cards → MP4 → inserts them before chapter starts. Replaces the manual Google Slides → PNG step; timestamps also auto-fill YouTube description chapters. |
 | 10 | **YouTube Data API for publishing (not Tella upload)** | FFmpeg holds the final cut, so we upload that. The Data API is also the only route to *scheduled* publishing (`private` + `publishAt`) — giving YouTube hours to index. |
 | 11 | **Self-improving loop** | `house-style.md` is read every run and updated by a post-video retro, so corrections become permanent rules. This is what makes it an engine, not a one-off. |
 | 12 | **Secret-leak QA gate: balanced** | Flags obvious keys/`.env`/tokens before publish without paranoid-blocking anything key-shaped. |
@@ -206,8 +207,8 @@ For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.
 | 1. Ingest | `make-video` skill (Tella MCP) | Tella clips → `transcript.json` |
 | 2. Script | Claude ✋ | `transcript.json` → `script.md` (chunked) |
 | 3. Voice | `scripts/elevenlabs.ts` | `script.md` → `vo/*.mp3` + `durations.json` |
-| 4. Visual edit | `scripts/plan-zooms.ts` + Claude (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4` (zoom built; blur/layouts/cards planned) |
-| 5. Mux | `scripts/finish.ts` (FFmpeg) | visuals + VO + music + logo + captions + intro + outro → `final.mp4` |
+| 4. Visual edit | `scripts/plan-zooms.ts` + Claude (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4`; body layout convention is fullscreen `screen-only`; blur/highlights are applied through Tella MCP when available |
+| 5. Mux | `scripts/make-video.ts` + `src/finish.ts` (FFmpeg) | visuals + VO + music + logo + optional captions + 3.5s chapter cards + intro + outro → `final.mp4` |
 | 6. QA | Claude ✋ | `final.mp4` → checks pass / fixes |
 | 7. Publish | `scripts/publish.ts` (YouTube API) | `final.mp4` + `metadata.json` → scheduled video |
 | 8. Retro | Claude | corrections → `house-style.md` diff |
@@ -238,7 +239,7 @@ Every stage validates its own outputs before the next starts, and every stage is
 To de-risk the two unproven assumptions (rambling → a good script; footage↔voice re-sync feeling natural), build in this order:
 
 1. **Thin end-to-end Y slice** — one short recording through *every* stage with minimal polish. Validates the core magic before investing in polish.
-2. **Polish** — animated chapter cards, music, blur, highlights, layouts.
+2. **Polish** — animated chapter cards, music, fullscreen body layout, blur, highlights.
 3. **Self-improving loop** — `house-style.md` + the retro stage.
 4. **Future stages 9–12** — see [`plan.md`](./plan.md).
 
@@ -272,12 +273,12 @@ aimh-video-engine/
 
 ## Getting Started
 
-> The core (thin-slice) pipeline is implemented and runs today, plus the intro/outro wrap and **per-chunk auto-zoom** (Stage 4). Remaining polish stages (blur/layouts/chapter cards, music, captions, publish) are in progress.
+> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, and fullscreen body-layout conventions. Remaining polish work is Tella-MCP blur/highlights and YouTube publishing.
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (JavaScript/TypeScript runtime)
-- [FFmpeg](https://ffmpeg.org/download.html) **with libass** (needed to burn captions). `brew install ffmpeg` usually includes it — check with `ffmpeg -version | grep libass`. If yours doesn't (e.g. a minimal build), install the fuller `ffmpeg-full` formula and point `FFMPEG`/`FFPROBE` at it (see Environment Variables).
+- [FFmpeg](https://ffmpeg.org/download.html) **with libass** (needed only when using `--captions`). `brew install ffmpeg` usually includes it — check with `ffmpeg -version | grep libass`. If yours doesn't (e.g. a minimal build), install the fuller `ffmpeg-full` formula and point `FFMPEG`/`FFPROBE` at it (see Environment Variables).
 - [Claude Code](https://claude.com/claude-code)
 - A [Tella](https://www.tella.com/) account (Pro) with the MCP connected
 - An [ElevenLabs](https://elevenlabs.io/) account (Creator) with a cloned voice
@@ -289,6 +290,7 @@ aimh-video-engine/
 |----------|-------------|
 | `ELEVENLABS_API_KEY` | ElevenLabs API key |
 | `ELEVENLABS_VOICE_ID` | Your cloned voice id |
+| `ELEVENLABS_PRONUNCIATION_DICTIONARY_ID` / `ELEVENLABS_PRONUNCIATION_DICTIONARY_VERSION_ID` | Optional. When both are set, every ElevenLabs request includes `pronunciation_dictionary_locators`. |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` | YouTube Data API OAuth |
 | `YOUTUBE_REFRESH_TOKEN` | Long-lived YouTube auth token |
 | `FFMPEG` / `FFPROBE` | Optional. Paths to the ffmpeg/ffprobe binaries; default to those on `PATH`. Set these to a libass-enabled build (e.g. `/usr/local/opt/ffmpeg-full/bin/ffmpeg`) if your default ffmpeg lacks libass. |
@@ -304,9 +306,22 @@ aimh-video-engine/
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
 3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, burns in captions from the script, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. Run `bun run qa <slug>` to validate the output (duration, 1080p, audio, captions; exits nonzero on failure) — it also prints **advisory, non-blocking** OCR-based secret-leak warnings — then review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--no-captions` skips captions, `--no-logo` skips the watermark, `--no-secrets` skips the secret scan.)
+4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (local `videos/<slug>/outro.mp4` wins over `assets/outro.mp4`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. Run `bun run qa <slug>` to validate the output (duration, 1080p, audio, and captions only if `captions.srt` exists; exits nonzero on failure) — it also prints **advisory, non-blocking** OCR-based secret-leak warnings — then review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--captions` opts into burned captions, `--no-cards` skips chapter cards, `--no-logo` skips the watermark, `--no-secrets` skips the secret scan.)
 
-**Planned:** Tella-MCP blur/layouts/chapter cards, music, word-level caption timing, and scheduled YouTube publishing.
+### Layout & Asset Conventions
+
+- **Body:** fullscreen screen recording only. In Tella, use `screen-only` / `fullscreen` for the base layout and preserve the full screen with `screenFit: "letterbox"` when Tella accepts it. No camera bubble, side-by-side, or presenter layout in the body.
+- **Intro:** face-only, real voice, real lip-sync. The current sample style is the webcam shot inside the blue grid frame; the pipeline preserves the intro's own audio and adds quiet music underneath when a body music track is selected.
+- **Outro:** intended to be a fullscreen, faceless branded end-card. The code does not enforce that composition; it normalizes and appends the supplied `outro.mp4`.
+- **Captions:** off by default for long-form. Use `--captions` only for Shorts or explicit captioned variants.
+
+### Pronunciation & TTS
+
+The ElevenLabs call prepares TTS-only text before sending it to `eleven_multilingual_v2`, so written script/captions can keep `aimh.co` while synthesized speech receives `A-I-M-H dot co`. After changing script text or TTS pronunciation logic, delete the affected cached `videos/<slug>/vo/<chunk>.mp3` files before re-running so the audio regenerates.
+
+ElevenLabs also supports pronunciation dictionaries through the Text-to-Speech API. Set `ELEVENLABS_PRONUNCIATION_DICTIONARY_ID` and `ELEVENLABS_PRONUNCIATION_DICTIONARY_VERSION_ID` to pass `pronunciation_dictionary_locators` on each synthesis request.
+
+**Planned:** Tella-MCP blur/highlights and scheduled YouTube publishing.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

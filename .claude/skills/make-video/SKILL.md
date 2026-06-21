@@ -25,7 +25,7 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
    - **Ground every chunk in the SRT** — never narrate something that isn't in the recording.
    - **Map `sourceStart`/`sourceEnd`** to the SRT cue times where that content appears; drop dead air between topics by leaving gaps between chunks.
    - **Clean filler and fix transcription errors** (garbled names, URLs, numbers).
-   - **Spell tricky terms phonetically for TTS** — domains, acronyms, and handles get mangled otherwise. Write `A-I-M-H dot co`, not `aimh.co`; avoid `@` and raw URLs.
+   - **Protect tricky TTS terms** — domains, acronyms, and handles get mangled otherwise. The engine rewrites `aimh.co` to `A-I-M-H dot co` only for ElevenLabs, so the visible script can keep the real domain. For other tricky terms, spell them phonetically in the script until a dictionary rule exists; avoid `@` and raw URLs.
    - **Keep chunks small** (one to a few sentences). Don't cram a long paragraph into one chunk — TTS rushes it. Give sign-offs like "Thank you" their own short chunk.
    - Aim for narration whose spoken length is *close* to its footage length. The planner tolerates 0.5×–2×, trimming idle tail or freeze-padding beyond that.
 
