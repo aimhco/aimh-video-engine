@@ -2,6 +2,7 @@ import { ffprobeDuration, ffprobeVideoSize, ffprobeHasAudio } from "./ffprobe";
 import { FFMPEG } from "./ffmpeg";
 import { planCaptions } from "./captions";
 import { scanSecretsInVideo } from "./secrets";
+import { deriveChapters, CARD_DURATION_SEC } from "./chapters";
 import type { ScriptChunk, VoChunk } from "./types";
 
 export interface QaCheck { name: string; pass: boolean; detail: string }
@@ -101,6 +102,7 @@ export async function runQa(dir: string, opts?: { scanSecrets?: boolean }): Prom
   const outroAsset = "assets/outro.mp4";
   if (await Bun.file(outroLocal).exists()) expectedDurationSec += await ffprobeDuration(outroLocal);
   else if (await Bun.file(outroAsset).exists()) expectedDurationSec += await ffprobeDuration(outroAsset);
+  expectedDurationSec += deriveChapters(script).length * CARD_DURATION_SEC;
 
   const finalDurationSec = await ffprobeDuration(final);
   const { width, height } = await ffprobeVideoSize(final);
