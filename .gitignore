@@ -18,6 +18,9 @@ videos/
 *.wav
 *.m4a
 
+# Test-generated fixtures (media + scratch). Intentional fixtures are force-added (git add -f).
+tests/fixtures/
+
 # OS / editor
 .DS_Store
 Thumbs.db

@@ -33,7 +33,9 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 
 4. **Run the pipeline:** `bun run make-video <slug>`. It synthesizes each chunk (cached in `videos/<slug>/vo/`), plans the segments (printing a speed/pad table), and assembles `videos/<slug>/final.mp4`.
 
-5. **Review `final.mp4` with the user** (✋ checkpoint). To iterate, edit `script.json` and re-run.
+5. **QA the output:** `bun run qa <slug>` validates `final.mp4` (duration, 1080p, audio not silent, caption-cue count) and exits nonzero if any check fails.
+
+6. **Review `final.mp4` with the user** (✋ checkpoint). To iterate, edit `script.json` and re-run.
    - ⚠️ The voice cache is keyed by chunk `id`. If you change a chunk's **text**, delete its `videos/<slug>/vo/<id>.mp3` (or the whole `vo/` dir) to force re-synthesis.
 
 ## Notes
