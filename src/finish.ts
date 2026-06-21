@@ -2,6 +2,7 @@
 import { resolve } from "node:path";
 import type { Segment } from "./types";
 import { FFMPEG } from "./ffmpeg";
+import { ffprobeDuration } from "./ffprobe";
 
 // Clean subtitle-bar style for burned-in captions (libass force_style).
 const CAPTION_STYLE =
@@ -115,5 +116,41 @@ export async function overlayLogo(opts: { video: string; logo: string; out: stri
     `[0:v][lg]overlay=W-w-${LOGO_MARGIN}:${LOGO_MARGIN}`;
   await runStage("overlay logo", () => Bun.$`${FFMPEG} -y -i ${opts.video} -i ${opts.logo} \
     -filter_complex ${filter} -map 0:a -c:a copy -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p ${opts.out}`.quiet());
+  return opts.out;
+}
+
+// Splice chapter cards into the already-captioned body. Captions are burned in
+// before this step, so cutting the body here does not shift caption timing.
+export async function insertChapterCards(opts: {
+  body: string; cards: { clip: string; atSec: number }[]; workDir: string; out: string;
+}): Promise<string> {
+  if (opts.cards.length === 0) {
+    await Bun.$`cp ${opts.body} ${opts.out}`;
+    return opts.out;
+  }
+  await Bun.$`mkdir -p ${opts.workDir}`;
+  const bodyDur = await ffprobeDuration(opts.body);
+  const cards = [...opts.cards].sort((a, b) => a.atSec - b.atSec);
+
+  const cut = async (start: number, end: number, name: string): Promise<string> => {
+    const p = `${opts.workDir}/${name}.mp4`;
+    await runStage(`cut body ${name}`, () => Bun.$`${FFMPEG} -y -ss ${start.toFixed(3)} -t ${(end - start).toFixed(3)} -i ${opts.body} \
+      -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium -c:a aac -b:a 160k -ar 48000 -ac 2 ${p}`.quiet());
+    return p;
+  };
+
+  const parts: string[] = [];
+  if (cards[0]!.atSec > 0.05) parts.push(await cut(0, cards[0]!.atSec, "cardpre"));
+  for (let k = 0; k < cards.length; k++) {
+    parts.push(cards[k]!.clip);
+    const start = cards[k]!.atSec;
+    const end = k + 1 < cards.length ? cards[k + 1]!.atSec : bodyDur;
+    if (end - start > 0.05) parts.push(await cut(start, end, `cardpiece_${k}`));
+  }
+
+  const listFile = `${opts.workDir}/cards.txt`;
+  await Bun.write(listFile, parts.map(concatLine).join("\n"));
+  await runStage("concat cards", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${listFile} \
+    -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium -c:a aac -b:a 160k -ar 48000 -ac 2 ${opts.out}`.quiet());
   return opts.out;
 }
