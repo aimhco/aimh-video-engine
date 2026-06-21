@@ -2,7 +2,7 @@
 import { resolve } from "node:path";
 import type { Segment } from "./types";
 import { FFMPEG } from "./ffmpeg";
-import { ffprobeDuration } from "./ffprobe";
+import { ffprobeDuration, ffprobeHasAudio } from "./ffprobe";
 
 // Clean subtitle-bar style for burned-in captions (libass force_style).
 const CAPTION_STYLE =
@@ -13,6 +13,7 @@ const CAPTION_STYLE =
 const LOGO_WIDTH = 150;    // px (~8% of 1920)
 const LOGO_MARGIN = 24;    // px from the top/right edges
 const LOGO_OPACITY = 0.85;
+const EXTERNAL_AUDIO_FILTER = "loudnorm=I=-18:TP=-2:LRA=11";
 
 // A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
 function subtitlesClause(captionsFile: string): string {
@@ -83,7 +84,11 @@ export async function assembleVideo(opts: {
 export async function wrapVideo(opts: {
   body: string; intro?: string; outro?: string; workDir: string; out: string;
 }): Promise<string> {
-  const parts = [opts.intro, opts.body, opts.outro].filter((p): p is string => Boolean(p));
+  const parts = [
+    opts.intro ? { file: opts.intro, normalizeAudio: true } : undefined,
+    { file: opts.body, normalizeAudio: false },
+    opts.outro ? { file: opts.outro, normalizeAudio: true } : undefined,
+  ].filter((p): p is { file: string; normalizeAudio: boolean } => Boolean(p));
   if (parts.length === 1) {
     await Bun.$`cp ${opts.body} ${opts.out}`;
     return opts.out;
@@ -97,8 +102,13 @@ export async function wrapVideo(opts: {
   let i = 0;
   for (const part of parts) {
     const n = `${opts.workDir}/wrap_${i}.mp4`;
-    await runStage(`normalize part ${i}`, () => Bun.$`${FFMPEG} -y -i ${part} \
-      -vf ${vf} -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 160k -ar 48000 -ac 2 ${n}`.quiet());
+    if (part.normalizeAudio && await ffprobeHasAudio(part.file)) {
+      await runStage(`normalize part ${i}`, () => Bun.$`${FFMPEG} -y -i ${part.file} \
+        -vf ${vf} -af ${EXTERNAL_AUDIO_FILTER} -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 160k -ar 48000 -ac 2 ${n}`.quiet());
+    } else {
+      await runStage(`normalize part ${i}`, () => Bun.$`${FFMPEG} -y -i ${part.file} \
+        -vf ${vf} -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 160k -ar 48000 -ac 2 ${n}`.quiet());
+    }
     normed.push(n);
     i++;
   }
