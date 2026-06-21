@@ -28,7 +28,7 @@ The video jumps straight from intro into screen content with no sectioning. We w
 |----------|--------|
 | Chapter source | Claude **auto-proposes** chapter titles+boundaries from `script.json` at a ✋ checkpoint; user edits. |
 | Card renderer | **`@resvg/resvg-js`** (SVG→PNG) — lightweight, deterministic, no Chromium. |
-| Card style | Static: brand **purple bg + cream text**, `CHAPTER N` + title, centered, ~2.5s, fade in/out. |
+| Card style | Static: brand **purple bg + cream text**, `CHAPTER N` + title, centered, ~3.5s, fade in/out. |
 | Card placement | A card at the **start of every chapter**, including chapter 1 (right after the intro). |
 | Caption safety | Cut the **already-captioned** body at chapter offsets and splice cards between pieces — captions are pre-burned, so timing is untouched. |
 | Card music | A short, faded segment of a `Body_` track, deterministically chosen per slug, persisted to `music.json`. |
@@ -61,7 +61,7 @@ export function chapterOffsetSec(startChunkIndex: number, vo: VoChunk[]): number
 - **I/O:** `renderCardPng(svg: string, outPath: string): Promise<void>` — `@resvg/resvg-js` with `font: { loadSystemFonts: true, defaultFontFamily: "Helvetica" }`, fitTo width 1920 → PNG.
 - **I/O:** `renderCardClip(opts: { png; musicFile?; musicOffsetSec; durationSec; workDir; out }): Promise<string>` — ffmpeg loops the PNG for `durationSec` at 1920×1080/30fps with a video fade in/out; if `musicFile`, mixes a faded segment (from `musicOffsetSec`) at a moderate level; else a silent audio track (so concat stays uniform). Via `FFMPEG`.
 
-Constants: `CARD_DURATION_SEC = 2.5`, `CARD_FADE_SEC = 0.4`, `CARD_MUSIC_DB = -10`.
+Constants: `CARD_DURATION_SEC = 3.5`, `CARD_FADE_SEC = 0.4`, `CARD_MUSIC_DB = -10`.
 
 ### `src/music.ts` — deterministic track pick
 

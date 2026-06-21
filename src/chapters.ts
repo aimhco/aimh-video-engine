@@ -2,7 +2,7 @@ import type { ScriptChunk, VoChunk } from "./types";
 
 // Card timing lives here (not cards.ts) so light consumers (qa.ts) can import it
 // without pulling in the resvg native module.
-export const CARD_DURATION_SEC = 2.5;
+export const CARD_DURATION_SEC = 3.5;
 
 export interface Chapter { index: number; title: string; startChunkIndex: number }
 

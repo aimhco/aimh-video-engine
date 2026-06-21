@@ -56,9 +56,9 @@ test("assembleVideo burns captions when a captionsFile is given", async () => {
 test("insertChapterCards splices a card into the body and extends duration", async () => {
   const dir = `${import.meta.dir}/fixtures/cards-insert`;
   await Bun.$`mkdir -p ${dir}`;
-  // 6s body (color+audio) and a 2.5s "card" (color+audio).
+  // 6s body (color+audio) and a 3.5s "card" (color+audio).
   await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=1920x1080:d=6 -f lavfi -i sine=frequency=440:duration=6 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/body.mp4`.quiet();
-  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=purple:s=1920x1080:d=2.5 -f lavfi -i sine=frequency=330:duration=2.5 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/card.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=purple:s=1920x1080:d=3.5 -f lavfi -i sine=frequency=330:duration=3.5 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/card.mp4`.quiet();
 
   const out = await insertChapterCards({
     body: `${dir}/body.mp4`,
@@ -67,6 +67,6 @@ test("insertChapterCards splices a card into the body and extends duration", asy
     out: `${dir}/out.mp4`,
   });
   const dur = parseFloat((await Bun.$`${FFPROBE} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${out}`.text()).trim());
-  expect(dur).toBeGreaterThan(8.0);  // 6 + 2.5 ~= 8.5
-  expect(dur).toBeLessThan(9.0);
+  expect(dur).toBeGreaterThan(9.0);  // 6 + 3.5 ~= 9.5
+  expect(dur).toBeLessThan(10.0);
 });

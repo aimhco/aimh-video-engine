@@ -4,7 +4,7 @@
 
 **Goal:** Insert branded chapter title cards (with music) at each chapter's start, without disturbing the burned captions.
 
-**Architecture:** Pure chapter derivation + SVG card template in `src/chapters.ts`/`src/cards.ts`; `@resvg/resvg-js` rasterizes cards (ffmpeg `drawtext` is unusable here); ffmpeg renders each card to a 2.5s clip with a faded `Body_` music bed; `insertChapterCards` cuts the already-captioned body at chapter offsets and splices cards between the pieces; `make-video` wires it in before the wrap.
+**Architecture:** Pure chapter derivation + SVG card template in `src/chapters.ts`/`src/cards.ts`; `@resvg/resvg-js` rasterizes cards (ffmpeg `drawtext` is unusable here); ffmpeg renders each card to a 3.5s clip with a faded `Body_` music bed; `insertChapterCards` cuts the already-captioned body at chapter offsets and splices cards between the pieces; `make-video` wires it in before the wrap.
 
 **Tech Stack:** Bun + TypeScript, `bun test`, `@resvg/resvg-js` (SVG→PNG), ffmpeg via `FFMPEG`.
 
@@ -12,7 +12,7 @@
 
 - Package manager **bun**, never npm. ffmpeg/ffprobe via `FFMPEG`/`FFPROBE` from `src/ffmpeg.ts` (never bare). **No `drawtext`** — text is rendered via `@resvg/resvg-js`.
 - All generated frames/PNGs live under `videos/<slug>/work/` (never `/tmp` — tesseract/other tools can't read `/tmp` here; and it keeps artifacts gitignored).
-- Card constants: `CARD_DURATION_SEC = 2.5` (defined in `src/chapters.ts` so light consumers like `qa.ts` can import it without pulling in resvg), `CARD_FADE_SEC = 0.4`, `CARD_MUSIC_DB = -10`, `CARD_BG = "#6B5FA8"`, `CARD_FG = "#F5EFE3"`.
+- Card constants: `CARD_DURATION_SEC = 3.5` (defined in `src/chapters.ts` so light consumers like `qa.ts` can import it without pulling in resvg), `CARD_FADE_SEC = 0.4`, `CARD_MUSIC_DB = -10`, `CARD_BG = "#6B5FA8"`, `CARD_FG = "#F5EFE3"`.
 - A card is inserted at the **start of each chapter** (including chapter 1). Captions are **pre-burned** on the body, so cutting+splicing the body never affects caption timing.
 - Music: deterministic `Body_` track per slug, persisted to `videos/<slug>/music.json`; **every card uses `musicOffsetSec = 0`**.
 - `--no-cards` skips the whole step; no chapters defined ⇒ skip (today's behavior).
@@ -104,7 +104,7 @@ import type { ScriptChunk, VoChunk } from "./types";
 
 // Card timing lives here (not cards.ts) so light consumers (qa.ts) can import it
 // without pulling in the resvg native module.
-export const CARD_DURATION_SEC = 2.5;
+export const CARD_DURATION_SEC = 3.5;
 
 export interface Chapter { index: number; title: string; startChunkIndex: number }
 
@@ -250,16 +250,16 @@ In `tests/finish.test.ts`, add:
 test("insertChapterCards splices a card into the body and extends duration", async () => {
   const dir = `${import.meta.dir}/fixtures/cards-insert`;
   await Bun.$`mkdir -p ${dir}`;
-  // 6s body (color+audio) and a 2.5s "card" (color+audio).
+  // 6s body (color+audio) and a 3.5s "card" (color+audio).
   await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=1920x1080:d=6 -f lavfi -i sine=frequency=440:duration=6 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/body.mp4`.quiet();
-  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=purple:s=1920x1080:d=2.5 -f lavfi -i sine=frequency=330:duration=2.5 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/card.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=purple:s=1920x1080:d=3.5 -f lavfi -i sine=frequency=330:duration=3.5 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/card.mp4`.quiet();
 
   const out = await insertChapterCards({
     body: `${dir}/body.mp4`, cards: [{ clip: `${dir}/card.mp4`, atSec: 3 }], workDir: `${dir}/work`, out: `${dir}/out.mp4`,
   });
   const dur = parseFloat((await Bun.$`${FFPROBE} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${out}`.text()).trim());
-  expect(dur).toBeGreaterThan(8.0);  // 6 + 2.5 ≈ 8.5
-  expect(dur).toBeLessThan(9.0);
+  expect(dur).toBeGreaterThan(9.0);  // 6 + 3.5 ≈ 9.5
+  expect(dur).toBeLessThan(10.0);
 });
 ```
 
@@ -491,7 +491,7 @@ git commit -m "feat: make-video renders + splices chapter cards with music; qa c
 **Spec coverage:**
 - Chapters from `script.json` (`chapter?`), auto-derived → Task 1 (`deriveChapters` + type). ✓
 - Branded SVG card via resvg (no drawtext) → Task 1 (`cardSvg`/`renderCardPng`). ✓
-- Card clip (2.5s, fades, faded Body_ music) → Task 1 (`renderCardClip`). ✓
+- Card clip (3.5s, fades, faded Body_ music) → Task 1 (`renderCardClip`). ✓
 - Insert at each chapter start; captions untouched (cut pre-captioned body) → Task 2 (`insertChapterCards`). ✓
 - Deterministic music pick + `music.json` sidecar, offset 0 → Task 3 (`pickTrack` + wiring). ✓
 - `--no-cards`, no-chapters no-op → Task 3 wiring. ✓

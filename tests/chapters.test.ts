@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { deriveChapters, chapterOffsetSec } from "../src/chapters";
+import { CARD_DURATION_SEC, deriveChapters, chapterOffsetSec } from "../src/chapters";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const chunk = (id: string, chapter?: string): ScriptChunk =>
@@ -22,4 +22,8 @@ test("chapterOffsetSec: sum of VO durations before the start chunk", () => {
   const v = [vo("c1", 4), vo("c2", 6), vo("c3", 5)];
   expect(chapterOffsetSec(0, v)).toBeCloseTo(0);
   expect(chapterOffsetSec(2, v)).toBeCloseTo(10);
+});
+
+test("CARD_DURATION_SEC is the standard transition-slide duration", () => {
+  expect(CARD_DURATION_SEC).toBe(3.5);
 });
