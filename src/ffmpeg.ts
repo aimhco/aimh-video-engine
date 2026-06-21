@@ -4,3 +4,5 @@
 // `||` (not `??`) so an empty-string env var also falls back to the PATH default.
 export const FFMPEG = process.env.FFMPEG || "ffmpeg";
 export const FFPROBE = process.env.FFPROBE || "ffprobe";
+// tesseract OCR binary (for the secret-leak scan); override via TESSERACT.
+export const TESSERACT = process.env.TESSERACT || "tesseract";

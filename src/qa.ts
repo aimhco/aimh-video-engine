@@ -1,10 +1,11 @@
 import { ffprobeDuration, ffprobeVideoSize, ffprobeHasAudio } from "./ffprobe";
 import { FFMPEG } from "./ffmpeg";
 import { planCaptions } from "./captions";
+import { scanSecretsInVideo } from "./secrets";
 import type { ScriptChunk, VoChunk } from "./types";
 
 export interface QaCheck { name: string; pass: boolean; detail: string }
-export interface QaReport { checks: QaCheck[]; ok: boolean }
+export interface QaReport { checks: QaCheck[]; warnings: string[]; ok: boolean }
 export interface QaInputs {
   finalDurationSec: number;
   expectedDurationSec: number;
@@ -33,8 +34,9 @@ export function parseMeanVolumeDb(ffmpegStderr: string): number | null {
   return m ? parseFloat(m[1]!) : null;
 }
 
-// Pure: build the QA report from already-probed values.
-export function evaluateQa(i: QaInputs): QaReport {
+// Pure: build the QA checks (and `ok`) from already-probed values. Warnings
+// (e.g. secret-scan findings) are added by runQa and never affect `ok`.
+export function evaluateQa(i: QaInputs): { checks: QaCheck[]; ok: boolean } {
   const checks: QaCheck[] = [];
 
   const dDelta = Math.abs(i.finalDurationSec - i.expectedDurationSec);
@@ -71,8 +73,16 @@ export function evaluateQa(i: QaInputs): QaReport {
   return { checks, ok: checks.every((c) => c.pass) };
 }
 
-// I/O: probe videos/<slug>/final.mp4 and surrounding files, then evaluate.
-export async function runQa(dir: string): Promise<QaReport> {
+// Format seconds as M:SS.
+export function fmtTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+// I/O: probe videos/<slug>/final.mp4 and surrounding files, evaluate the gating
+// checks, then (unless disabled) run a warn-only secret scan.
+export async function runQa(dir: string, opts?: { scanSecrets?: boolean }): Promise<QaReport> {
   const final = `${dir}/final.mp4`;
   if (!(await Bun.file(final).exists())) throw new Error(`runQa: ${final} not found — run make-video first`);
 
@@ -104,8 +114,23 @@ export async function runQa(dir: string): Promise<QaReport> {
   const srtCueCount = captionsPresent ? parseSrtCueCount(await Bun.file(srtPath).text()) : 0;
   const expectedCueCount = planCaptions(script, vo).length;
 
-  return evaluateQa({
+  const base = evaluateQa({
     finalDurationSec, expectedDurationSec, width, height, hasAudio,
     meanVolumeDb, captionsPresent, srtCueCount, expectedCueCount,
   });
+
+  // Warn-only secret scan (advisory; never affects `ok`/exit).
+  let warnings: string[] = [];
+  if (opts?.scanSecrets !== false) {
+    try {
+      const findings = await scanSecretsInVideo(final, `${dir}/work`);
+      warnings = findings.map(
+        (f) => `possible secret at ${fmtTime(f.timeSec)} — ${f.pattern}: "${f.snippet}"`,
+      );
+    } catch (err) {
+      warnings = [`secret scan could not run: ${(err as Error).message}`];
+    }
+  }
+
+  return { checks: base.checks, ok: base.ok, warnings };
 }

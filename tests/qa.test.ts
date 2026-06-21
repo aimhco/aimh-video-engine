@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseSrtCueCount, parseMeanVolumeDb, evaluateQa, runQa } from "../src/qa";
+import { parseSrtCueCount, parseMeanVolumeDb, evaluateQa, runQa, fmtTime } from "../src/qa";
 import type { QaInputs } from "../src/qa";
 import { FFMPEG } from "../src/ffmpeg";
 
@@ -17,6 +17,12 @@ const goodInputs = (): QaInputs => ({
 
 const check = (r: { checks: { name: string; pass: boolean; detail: string }[] }, name: string) =>
   r.checks.find((c) => c.name === name)!;
+
+test("fmtTime formats seconds as M:SS", () => {
+  expect(fmtTime(0)).toBe("0:00");
+  expect(fmtTime(42)).toBe("0:42");
+  expect(fmtTime(125)).toBe("2:05");
+});
 
 test("parseSrtCueCount counts cues", () => {
   const srt = "1\n00:00:00,000 --> 00:00:04,000\nHello\n\n2\n00:00:04,000 --> 00:00:10,000\nWorld\n";
@@ -84,6 +90,20 @@ test("runQa passes on a well-formed fixture", async () => {
   // one caption cue (planCaptions yields 1 for this short chunk)
   await Bun.write(`${dir}/captions.srt`, "1\n00:00:00,000 --> 00:00:02,000\nhello world\n");
 
-  const report = await runQa(dir);
+  const report = await runQa(dir, { scanSecrets: false });
   expect(report.ok).toBe(true);
+  expect(report.warnings).toEqual([]);
+});
+
+test("runQa scans for secrets and does not false-positive on clean frames", async () => {
+  const dir = `${import.meta.dir}/fixtures/qa-secrets`;
+  await Bun.$`mkdir -p ${dir}/vo`;
+  await Bun.write(`${dir}/script.json`, JSON.stringify([{ id: "c1", text: "hello world", sourceStart: 0, sourceEnd: 2 }]));
+  await Bun.$`${FFMPEG} -y -f lavfi -i sine=frequency=440:duration=2 ${dir}/vo/c1.mp3`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=1920x1080:d=2 -f lavfi -i sine=frequency=440:duration=2 -pix_fmt yuv420p -c:v libx264 -c:a aac -shortest ${dir}/final.mp4`.quiet();
+  await Bun.write(`${dir}/captions.srt`, "1\n00:00:00,000 --> 00:00:02,000\nhello world\n");
+
+  const report = await runQa(dir); // secrets on by default
+  expect(report.ok).toBe(true);
+  expect(report.warnings).toEqual([]); // blue frames have no text → no secret warnings
 });
