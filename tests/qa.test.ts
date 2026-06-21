@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseSrtCueCount, parseMeanVolumeDb, evaluateQa, runQa } from "../src/qa";
+import { parseSrtCueCount, parseMeanVolumeDb, evaluateQa, runQa, fmtTime } from "../src/qa";
 import type { QaInputs } from "../src/qa";
 import { FFMPEG } from "../src/ffmpeg";
 
@@ -17,6 +17,12 @@ const goodInputs = (): QaInputs => ({
 
 const check = (r: { checks: { name: string; pass: boolean; detail: string }[] }, name: string) =>
   r.checks.find((c) => c.name === name)!;
+
+test("fmtTime formats seconds as M:SS", () => {
+  expect(fmtTime(0)).toBe("0:00");
+  expect(fmtTime(42)).toBe("0:42");
+  expect(fmtTime(125)).toBe("2:05");
+});
 
 test("parseSrtCueCount counts cues", () => {
   const srt = "1\n00:00:00,000 --> 00:00:04,000\nHello\n\n2\n00:00:04,000 --> 00:00:10,000\nWorld\n";
