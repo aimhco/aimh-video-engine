@@ -5,6 +5,7 @@ export interface ZoomCue { scale?: number; focusPct?: [number, number] }
 export interface ScriptChunk {
   id: string; text: string; sourceStart: number; sourceEnd: number;
   zoom?: ZoomCue;
+  chapter?: string;
 }
 export interface VoChunk { id: string; file: string; duration: number; cached?: boolean }
 

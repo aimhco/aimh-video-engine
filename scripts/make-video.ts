@@ -1,8 +1,11 @@
 // scripts/make-video.ts — thin Y-slice CLI: script.json + recording.mp4 -> final.mp4
 import { synthesizeChunk } from "../src/elevenlabs";
 import { planSegments } from "../src/align";
-import { assembleVideo, wrapVideo, overlayLogo } from "../src/finish";
+import { assembleVideo, wrapVideo, overlayLogo, insertChapterCards } from "../src/finish";
 import { planCaptions, toSrt } from "../src/captions";
+import { deriveChapters, chapterOffsetSec } from "../src/chapters";
+import { cardSvg, renderCardPng, renderCardClip } from "../src/cards";
+import { pickTrack } from "../src/music";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const slug = process.argv[2];
@@ -55,6 +58,32 @@ const body = await assembleVideo({
   captionsFile,
 });
 
+// Chapter cards: render a branded card per chapter and splice them into the body. --no-cards skips.
+let bodyForWrap = body;
+const chapters = process.argv.includes("--no-cards") ? [] : deriveChapters(script);
+if (chapters.length) {
+  const musicJson = `${dir}/music.json`;
+  let bodyTrack: string | undefined;
+  if (await Bun.file(musicJson).exists()) {
+    bodyTrack = ((await Bun.file(musicJson).json()) as { bodyTrack?: string }).bodyTrack;
+  } else {
+    const tracks = (await Array.fromAsync(new Bun.Glob("Body_*.mp3").scan({ cwd: "assets/music", absolute: true }))).sort();
+    bodyTrack = pickTrack(slug, tracks);
+    await Bun.write(musicJson, JSON.stringify({ bodyTrack: bodyTrack ?? null }, null, 2));
+  }
+
+  const cards: { clip: string; atSec: number }[] = [];
+  for (const ch of chapters) {
+    const png = `${dir}/work/card_${ch.index}.png`;
+    await renderCardPng(cardSvg({ number: ch.index, title: ch.title }), png);
+    const clip = `${dir}/work/card_${ch.index}.mp4`;
+    await renderCardClip({ png, out: clip, musicFile: bodyTrack, musicOffsetSec: 0 });
+    cards.push({ clip, atSec: chapterOffsetSec(ch.startChunkIndex, vo) });
+  }
+  console.log(`+ chapters: ${chapters.length} card(s)${bodyTrack ? ` (music: ${bodyTrack.split("/").pop()})` : " (no music)"}`);
+  bodyForWrap = await insertChapterCards({ body, cards, workDir: `${dir}/work`, out: `${dir}/body-cards.mp4` });
+}
+
 // Optional: wrap with a per-video real-face intro and a reusable faceless outro (each keeps its own audio).
 const intro = (await Bun.file(`${dir}/intro.mp4`).exists()) ? `${dir}/intro.mp4` : undefined;
 const outro = (await Bun.file(`${dir}/outro.mp4`).exists())
@@ -65,7 +94,7 @@ const outro = (await Bun.file(`${dir}/outro.mp4`).exists())
 if (intro) console.log(`+ intro: ${intro}`);
 if (outro) console.log(`+ outro: ${outro}`);
 
-const out = await wrapVideo({ body, intro, outro, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
+const out = await wrapVideo({ body: bodyForWrap, intro, outro, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
 
 // Branding: overlay the logo watermark over the whole final video. On by default; --no-logo skips.
 const logoEnabled = !process.argv.includes("--no-logo");

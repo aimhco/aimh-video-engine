@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { assembleVideo } from "../src/finish";
+import { assembleVideo, insertChapterCards } from "../src/finish";
 import { ffprobeDuration } from "../src/ffprobe";
 import { FFMPEG, FFPROBE } from "../src/ffmpeg";
 import type { Segment } from "../src/types";
@@ -51,4 +51,22 @@ test("assembleVideo burns captions when a captionsFile is given", async () => {
   const streams = await Bun.$`${FFPROBE} -v error -show_entries stream=codec_type -of csv=p=0 ${out}`.text();
   expect(streams).toContain("video");
   expect(streams).toContain("audio");
+});
+
+test("insertChapterCards splices a card into the body and extends duration", async () => {
+  const dir = `${import.meta.dir}/fixtures/cards-insert`;
+  await Bun.$`mkdir -p ${dir}`;
+  // 6s body (color+audio) and a 2.5s "card" (color+audio).
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=1920x1080:d=6 -f lavfi -i sine=frequency=440:duration=6 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/body.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=purple:s=1920x1080:d=2.5 -f lavfi -i sine=frequency=330:duration=2.5 -pix_fmt yuv420p -r 30 -c:v libx264 -c:a aac -shortest ${dir}/card.mp4`.quiet();
+
+  const out = await insertChapterCards({
+    body: `${dir}/body.mp4`,
+    cards: [{ clip: `${dir}/card.mp4`, atSec: 3 }],
+    workDir: `${dir}/work`,
+    out: `${dir}/out.mp4`,
+  });
+  const dur = parseFloat((await Bun.$`${FFPROBE} -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ${out}`.text()).trim());
+  expect(dur).toBeGreaterThan(8.0);  // 6 + 2.5 ~= 8.5
+  expect(dur).toBeLessThan(9.0);
 });
