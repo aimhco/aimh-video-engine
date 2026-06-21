@@ -6,6 +6,7 @@ import { planCaptions, toSrt } from "../src/captions";
 import { deriveChapters, chapterOffsetSec } from "../src/chapters";
 import { cardSvg, renderCardPng, renderCardClip } from "../src/cards";
 import { pickTrack } from "../src/music";
+import { captionsEnabledFromArgs } from "../src/options";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const slug = process.argv[2];
@@ -27,8 +28,8 @@ for (const chunk of script) {
   vo.push(v);
 }
 
-// Captions: burn the script narration onto the body, timed to the VO. On by default; --no-captions skips.
-const captionsEnabled = !process.argv.includes("--no-captions");
+// Captions: opt-in for short-form renders. Long-form YouTube videos stay clean by default.
+const captionsEnabled = captionsEnabledFromArgs(process.argv);
 let captionsFile: string | undefined;
 if (captionsEnabled) {
   const cues = planCaptions(script, vo);

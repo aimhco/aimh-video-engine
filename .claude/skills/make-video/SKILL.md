@@ -31,7 +31,7 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 
 3. **Get the user's approval of the script** (✋ checkpoint) — this is *before* any ElevenLabs spend.
 
-4. **Run the pipeline:** for long-form YouTube videos, use `bun run make-video <slug> --no-captions`. Long-form content should not have burned-in captions unless the user explicitly asks for them. Captions are appropriate for Shorts or other short-form variants. The pipeline synthesizes each chunk (cached in `videos/<slug>/vo/`), plans the segments (printing a speed/pad table), and assembles `videos/<slug>/final.mp4`.
+4. **Run the pipeline:** `bun run make-video <slug>`. Long-form content does not have burned-in captions by default. Use `--captions` only when the user explicitly wants captions, such as for Shorts or other short-form variants. The pipeline synthesizes each chunk (cached in `videos/<slug>/vo/`), plans the segments (printing a speed/pad table), and assembles `videos/<slug>/final.mp4`.
 
 5. **QA the output:** `bun run qa <slug>` validates `final.mp4` (duration, 1080p, audio not silent, and captions only if `captions.srt` exists) and exits nonzero if any check fails. It also prints **advisory, non-blocking** OCR-based secret-leak warnings (review them — OCR can be wrong); `--no-secrets` skips that pass.
 
