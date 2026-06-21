@@ -4,7 +4,7 @@ Continue development here while the Claude Code session limit resets. Point Code
 
 ## TL;DR
 - **Repo:** `/Users/dennywii/Documents/dev/aimh-video-engine` (Bun + TypeScript). **Current branch:** `stage-4-chapter-cards`.
-- **In flight:** Stage-4 **chapter cards**. Spec is committed and complete: `docs/superpowers/specs/2026-06-21-chapter-cards-design.md`. Next step: write the plan + build it (TDD), then merge to `main`.
+- **In flight:** Stage-4 **chapter cards** on branch `stage-4-chapter-cards`. **Task 1 is done** (commit `7756853`, reviewed). The full plan with **copy-paste code for every task** is committed: `docs/superpowers/plans/2026-06-21-chapter-cards.md`. **Next: do Tasks 2 & 3, then merge to `main`.**
 - **Already on `main` (done):** auto-zoom, burned captions, logo watermark, QA checks, warn-only secret scan. Full suite = 68 tests.
 
 ## ⚠️ Critical environment gotchas (this machine's Homebrew is non-standard — these WILL bite you)
@@ -39,11 +39,14 @@ Continue development here while the Claude Code session limit resets. Point Code
 - `secrets.ts` — `scanTextForSecrets` / `scanSecretsInVideo`.
 - `scripts/` — `make-video.ts`, `plan-zooms.ts`, `qa.ts` (CLIs).
 
-## CURRENT TASK: build chapter cards per the committed spec
-Read `docs/superpowers/specs/2026-06-21-chapter-cards-design.md` first — it's complete. Suggested task split (TDD each, commit per task):
-1. **Chapters + card render.** Add `ScriptChunk.chapter?: string`. `src/chapters.ts`: `deriveChapters` + `chapterOffsetSec` (pure). `src/cards.ts`: `cardSvg` (pure), `renderCardPng` (`@resvg/resvg-js`, `loadSystemFonts`), `renderCardClip` (ffmpeg: loop PNG 2.5s + fades + faded `Body_` music). `bun add @resvg/resvg-js`. Pure tests + a render integration test (valid 1920×1080 PNG).
-2. **Insertion.** `finish.ts` `insertChapterCards` — cut the already-captioned body at chapter offsets, splice `card+piece+card+piece…`. Integration test (duration ≈ body + cards). Captions stay correct because the body is pre-captioned.
-3. **Music + wiring.** `src/music.ts` `pickTrack` (pure, deterministic per slug). `scripts/make-video.ts`: derive chapters → pick/persist `videos/<slug>/music.json` → render cards (music offset 0) → `insertChapterCards` → `wrapVideo`; add `--no-cards`. **Update `runQa` expected-duration to add `cards × 2.5s` when chapters exist** (else the duration check fails). Verify: add `chapter` fields to `videos/sample/script.json`, run `make-video sample`, eyeball a card frame, confirm `qa sample` still passes.
+## CURRENT TASK: finish chapter cards — Tasks 2 & 3
+The full plan with **complete copy-paste code for every task** is committed: `docs/superpowers/plans/2026-06-21-chapter-cards.md`. Follow it task-by-task (TDD: write the failing test → run red → implement → run green → commit). Branch `stage-4-chapter-cards` is already checked out; spec + plan are on it.
+
+- ✅ **Task 1 DONE** (commit `7756853`, reviewed clean): `ScriptChunk.chapter?`; `src/chapters.ts` (`deriveChapters`, `chapterOffsetSec`, `CARD_DURATION_SEC`); `src/cards.ts` (`cardSvg`, `renderCardPng` via `@resvg/resvg-js` — confirmed working under Bun — `renderCardClip`). Suite: 73/73 on the branch.
+- ⬜ **Task 2 — `insertChapterCards`** (`src/finish.ts`): cut the already-captioned body at each chapter offset and concat `card+piece+card+piece…` (captions are pre-burned, so cutting doesn't disturb them). Plan has the full function + integration test.
+- ⬜ **Task 3 — music + wiring + QA**: `src/music.ts` `pickTrack` (pure, deterministic per slug); wire `scripts/make-video.ts` (derive chapters → pick/persist `videos/<slug>/music.json` → render cards w/ `musicOffsetSec: 0` → `insertChapterCards` → `wrapVideo`; `--no-cards` flag); **add `chapters × CARD_DURATION_SEC` to `runQa`'s expected duration** (else the duration check fails once cards exist). Plan has all the code.
+
+**After Task 3:** `bun test` (all green) → verify on the sample (add `chapter` fields to `videos/sample/script.json`, `bun run make-video sample`, eyeball a card frame, `bun run qa sample` passes) → merge `stage-4-chapter-cards` to `main` with `--no-ff` and re-run the suite on `main`. (Cards need no skill change, so no `aimhco/skills` sync this slice.)
 
 ## What Codex should NOT attempt (needs the Claude Code session / Tella MCP)
 - **Tella MCP operations** (applying zoom/blur on the original recording, re-export) — only available in the Claude Code session. **Chapter cards do NOT need Tella**, so you can fully build this slice. Leave the **blur** slice (needs Tella MCP) for when Claude Code is back.
