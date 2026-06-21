@@ -304,7 +304,7 @@ aimh-video-engine/
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
 3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, burns in captions from the script, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). Review it (✋). It also overlays your `assets/logo.png` as a top-right watermark. (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--no-captions` skips captions, `--no-logo` skips the watermark.)
+4. The engine synthesizes your cloned voice, re-times the footage to it, burns in captions from the script, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (if present in `videos/<slug>/`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. Run `bun run qa <slug>` to validate the output (duration, 1080p, audio, captions; exits nonzero on failure), then review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--no-captions` skips captions, `--no-logo` skips the watermark.)
 
 **Planned:** Tella-MCP blur/layouts/chapter cards, music, word-level caption timing, and scheduled YouTube publishing.
 
