@@ -62,11 +62,14 @@ Zoom is added on the **original** Tella recording (it needs Tella's cursor data,
 
 **Plan the zooms:** `bun run plan-zooms <slug>` reads `script.json`, writes `videos/<slug>/zoom-plan.json`, and prints a table. If the chunk's VO is already synthesized, it also shows `estFinal` — how long the zoom plays in the final cut (a zoom inside a sped-up segment plays faster).
 
+**Layout convention:** the narrated body is faceless and screen-first. In Tella, set the body clip's base layout to `screen-only` / `fullscreen` and preserve all screen content (`screenFit: "letterbox"` when the option is available). Do not use camera bubble, side-by-side, or presenter layouts in the body; the real face belongs only in `videos/<slug>/intro.mp4`.
+
 **Apply via Tella MCP** (this skill, on the user's confirmation):
 1. Resolve the Tella project: read `videos/<slug>/tella.json` `{ videoId, clipId }` if present; otherwise find it with `list_videos` (match by name) + `list_clips`, and write `tella.json` for next time.
-2. Clear existing zooms so re-applying never stacks: `list_zooms` → `remove_zoom` for each.
-3. For each entry in `zoom-plan.json`, call `add_zoom` (`type: manualZoom`, its `startTimeMs`, `durationMs`, `scale`, `focusPoint`).
-4. `export_video` (1080p), poll to completion, download, and swap the result in as `videos/<slug>/recording.mp4`.
-5. Run `bun run make-video <slug>` — VO is a $0 cache hit; only ffmpeg re-assembly runs.
+2. Apply the layout convention: `list_layouts`; use `update_layout` on `layoutId: "base"` with `{ "kind": "screen-only", "style": "fullscreen", "screenFit": "letterbox" }` when the clip's `layoutSceneType` supports it. If Tella rejects `screenFit`, retry with `{ "kind": "screen-only", "style": "fullscreen" }`.
+3. Clear existing zooms so re-applying never stacks: `list_zooms` → `remove_zoom` for each.
+4. For each entry in `zoom-plan.json`, call `add_zoom` (`type: manualZoom`, its `startTimeMs`, `durationMs`, `scale`, `focusPoint`).
+5. `export_video` (1080p), poll to completion, download, and swap the result in as `videos/<slug>/recording.mp4`.
+6. Run `bun run make-video <slug>` — VO is a $0 cache hit; only ffmpeg re-assembly runs.
 
 Lesson from the first manual test (2026-06): `trackingZoom` at scale 1.6 jittered (it amplifies small mouse motion). This workflow uses `manualZoom` with precise, chunk-scoped cues to stay steady.
