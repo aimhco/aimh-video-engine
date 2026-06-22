@@ -1,6 +1,7 @@
 // tests/wrap.test.ts
 import { expect, test } from "bun:test";
 import { mixMusicUnderVideo, wrapVideo } from "../src/finish";
+import { cardSvg, renderCardClip, renderCardPng } from "../src/cards";
 import { ffprobeDuration } from "../src/ffprobe";
 import { FFMPEG } from "../src/ffmpeg";
 
@@ -74,4 +75,28 @@ test("mixMusicUnderVideo adds a quiet music bed under an intro clip", async () =
   expect(dur).toBeLessThan(2.3);
   expect(await meanVolumeDb(out, 0, 2)).toBeGreaterThan(-50);
   expect(await meanVolumeDb(out, 0, 2)).toBeLessThan(-20);
+});
+
+test("default intro music is quieter than transition card music", async () => {
+  const dir = `${import.meta.dir}/fixtures/intro-vs-card-music`;
+  await Bun.$`mkdir -p ${dir}`;
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=red:s=1280x720:d=3.5 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000:d=3.5 -pix_fmt yuv420p -c:v libx264 -c:a aac -shortest ${dir}/intro.mp4`.quiet();
+  await Bun.$`${FFMPEG} -y -f lavfi -i sine=frequency=880:duration=3.5 -c:a aac ${dir}/music.m4a`.quiet();
+  await renderCardPng(cardSvg({ number: 1, title: "Transition" }), `${dir}/card.png`);
+
+  const intro = await mixMusicUnderVideo({
+    video: `${dir}/intro.mp4`,
+    musicFile: `${dir}/music.m4a`,
+    out: `${dir}/intro-music.mp4`,
+    fadeSec: 0.1,
+  });
+  const card = await renderCardClip({
+    png: `${dir}/card.png`,
+    musicFile: `${dir}/music.m4a`,
+    out: `${dir}/card.mp4`,
+  });
+
+  const introDb = await meanVolumeDb(intro, 1, 1);
+  const cardDb = await meanVolumeDb(card, 1, 1);
+  expect(introDb).toBeLessThan(cardDb - 10);
 });

@@ -14,7 +14,7 @@ const LOGO_WIDTH = 150;    // px (~8% of 1920)
 const LOGO_MARGIN = 24;    // px from the top/right edges
 const LOGO_OPACITY = 0.85;
 const EXTERNAL_AUDIO_FILTER = "loudnorm=I=-18:TP=-2:LRA=11";
-const INTRO_MUSIC_DB = -18;
+const INTRO_MUSIC_DB = -24;
 const INTRO_MUSIC_FADE_SEC = 1.0;
 
 // A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
