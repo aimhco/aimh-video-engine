@@ -323,6 +323,28 @@ ElevenLabs also supports pronunciation dictionaries through the Text-to-Speech A
 
 **Planned:** Tella-MCP blur/highlights and scheduled YouTube publishing.
 
+### YouTube Private Upload
+
+The first publishing slice uploads `videos/<slug>/final.mp4` as a **private** YouTube video. Scheduling/public release stays separate.
+
+1. Create a Desktop OAuth client in Google Cloud with the YouTube Data API enabled.
+2. Set `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` in `.env`.
+3. Run `bun run youtube-login`, open the printed URL, and add the printed `YOUTUBE_REFRESH_TOKEN` to `.env`.
+4. Add `videos/<slug>/metadata.json`:
+
+```json
+{
+  "title": "Video title",
+  "description": "Video description",
+  "tags": ["aimh", "video"],
+  "privacyStatus": "private",
+  "selfDeclaredMadeForKids": false
+}
+```
+
+5. Check the request without uploading: `bun run publish <slug> --dry-run`.
+6. Upload only when ready: `bun run publish <slug> --yes`.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ---
