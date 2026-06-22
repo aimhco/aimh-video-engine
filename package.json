@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "make-video": "bun run scripts/make-video.ts",
+    "plan-overlays": "bun run scripts/plan-overlays.ts",
     "plan-zooms": "bun run scripts/plan-zooms.ts",
     "qa": "bun run scripts/qa.ts",
     "test": "bun test"

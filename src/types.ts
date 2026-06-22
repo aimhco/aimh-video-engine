@@ -20,6 +20,27 @@ export interface ZoomPlanEntry {
 }
 export interface ZoomPlan { zooms: ZoomPlanEntry[]; warnings: string[] }
 
+export interface OverlaySpec {
+  id: string;
+  kind: "highlight" | "blur";
+  chunkId?: string;
+  startTimeSec?: number;
+  endTimeSec?: number;
+  pointPct: [number, number];
+  sizePct: [number, number];
+  note?: string;
+}
+export interface OverlayPlanEntry {
+  id: string;
+  kind: "highlight" | "blur";
+  startTimeMs: number;
+  durationMs: number;
+  point: { xPct: number; yPct: number };
+  dimensions: { widthPct: number; heightPct: number };
+  note?: string;
+}
+export interface OverlayPlan { overlays: OverlayPlanEntry[]; warnings: string[] }
+
 export interface Segment {
   id: string;
   sourceStart: number;
