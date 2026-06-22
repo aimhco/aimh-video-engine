@@ -73,3 +73,35 @@ Zoom is added on the **original** Tella recording (it needs Tella's cursor data,
 6. Run `bun run make-video <slug>` — VO is a $0 cache hit; only ffmpeg re-assembly runs.
 
 Lesson from the first manual test (2026-06): `trackingZoom` at scale 1.6 jittered (it amplifies small mouse motion). This workflow uses `manualZoom` with precise, chunk-scoped cues to stay steady.
+
+## Stage 4 — highlights & blur via Tella MCP
+
+Like zoom, highlight and blur masks live on the **original** Tella recording and are baked in at export. They're overlays — they do **not** change clip duration, so cached VO and `script.json` timestamps stay aligned. **Never trim/cut in Tella.**
+
+- **Highlight** spotlights a screen region (dims the rest) to track what the user is selecting/pointing at.
+- **Blur** obscures sensitive content (tokens, emails, private data).
+
+**Author overlay specs** in `videos/<slug>/overlays.json` — an array of:
+
+```json
+{ "id": "pricing-cards", "kind": "highlight", "chunkId": "c09",
+  "pointPct": [6, 35], "sizePct": [88, 58],
+  "note": "Track the pricing cards, not the Pricing heading." }
+```
+
+- `kind` — `"highlight"` or `"blur"`.
+- Timing — either `chunkId` (spans that chunk's `sourceStart…sourceEnd`) **or** explicit `startTimeSec`/`endTimeSec`.
+- `pointPct` — top-left corner `[x, y]` (0–100). `sizePct` — `[width, height]` (0–100). Out-of-range values are clamped with a warning.
+- `note` — optional human reminder of what the mask tracks; **local-only**, never sent to Tella.
+
+**Plan the overlays:** `bun run plan-overlays <slug>` reads `overlays.json` + `script.json`, writes `videos/<slug>/overlay-plan.json` (Tella mask geometry in ms), and prints a table. Resolve any printed warnings before applying.
+
+**Apply via Tella MCP** (idempotent — clear then re-add so re-runs never stack):
+1. Resolve the Tella project from `videos/<slug>/tella.json` `{ videoId, clipId }` (as for zoom).
+2. Read `overlay-plan.json`.
+3. Clear existing masks: `list_highlights` → `remove_highlight` for each; `list_blurs` → `remove_blur` for each.
+4. For each plan entry, add it on the matching layer: `add_highlight` for `kind: "highlight"`, `add_blur` for `kind: "blur"`, passing its `startTimeMs`, `durationMs`, `point`, `dimensions`.
+5. Verify: `list_highlights` + `list_blurs` and confirm the count and geometry match `overlay-plan.json`.
+6. `export_video` (1080p), poll to completion, download, swap the result in as `videos/<slug>/recording.mp4`, then re-run `bun run make-video <slug>` (VO is a $0 cache hit; only ffmpeg re-assembly runs).
+
+Tip: a highlight should track the *active content* the user is selecting (e.g. the pricing cards), not a page heading above it. If the first placement reads too high or too wide, adjust `pointPct`/`sizePct` in `overlays.json` and re-apply.
