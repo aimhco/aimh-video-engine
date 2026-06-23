@@ -1,4 +1,10 @@
-import { createRetroTemplate, DEFAULT_HOUSE_STYLE, mergeHouseStyle, parseRetroInput } from "../src/retro";
+import {
+  createRetroTemplate,
+  DEFAULT_HOUSE_STYLE,
+  hasPlaceholderRules,
+  mergeHouseStyle,
+  parseRetroInput,
+} from "../src/retro";
 
 const slug = process.argv[2];
 if (!slug) throw new Error("usage: bun run retro <slug> [--apply]");
@@ -27,6 +33,10 @@ if (!apply) {
   }
   console.log("review only - pass --apply to update house-style.md");
   process.exit(0);
+}
+
+if (hasPlaceholderRules(retro)) {
+  throw new Error(`${retroFile} still contains the template placeholder. Replace it with durable lessons before --apply.`);
 }
 
 const existing = (await Bun.file(houseStyleFile).exists())

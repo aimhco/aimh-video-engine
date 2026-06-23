@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   DEFAULT_HOUSE_STYLE,
   createRetroTemplate,
+  hasPlaceholderRules,
   mergeHouseStyle,
   parseRetroInput,
 } from "../src/retro";
@@ -27,6 +28,16 @@ test("parseRetroInput validates rules and trims fields", () => {
     video: "sample",
     rules: [{ category: "audio", rule: "Keep intro music quiet.", reason: "Voice is primary." }],
   });
+});
+
+test("hasPlaceholderRules detects an unedited retro template", () => {
+  const retro = parseRetroInput(JSON.parse(createRetroTemplate("sample")));
+
+  expect(hasPlaceholderRules(retro)).toBe(true);
+  expect(hasPlaceholderRules({
+    video: "sample",
+    rules: [{ category: "script", rule: "Keep the narration grounded in the transcript." }],
+  })).toBe(false);
 });
 
 test("mergeHouseStyle appends approved rules under learned rules", () => {

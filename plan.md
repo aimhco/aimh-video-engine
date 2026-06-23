@@ -11,6 +11,8 @@ This document covers the **deferred** stages of `aimh-video-engine` — the mult
 
 **Design principle that makes this possible:** every provider sits behind a clean interface. Each future stage is a module that consumes the core engine's `final.mp4` + metadata and is independently swappable.
 
+**Operator principle:** the user-facing workflow should remain "ask the agent to make the video" plus review checkpoints. Individual commands (`make-video`, `qa`, `publish`, `retro`, Tella apply steps) are implementation details the agent runs and verifies unless the user explicitly asks to run them manually.
+
 ---
 
 ## Status Legend

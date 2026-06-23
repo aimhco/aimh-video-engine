@@ -41,7 +41,32 @@
 
 </div>
 
-> **🟢 Status: Core engine closed for real use.** The pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script guided by `house-style.md` → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. Publishing supports private upload plus optional `publishAt`, and `bun run retro <slug>` keeps recurring lessons in `house-style.md`. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Core engine ready for real videos.** Stages 1–8 are implemented for the current workflow: local Tella export in, polished narrated YouTube-ready video out. The pipeline turns a Tella screen recording + `.srt` into a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script guided by `house-style.md` → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. Publishing supports private upload plus optional `publishAt`, and `bun run retro <slug>` keeps recurring lessons in `house-style.md`. Future stages (9–12) live in [`plan.md`](./plan.md).
+
+### How You Run It
+
+The current reliable input path is local files, not automatic "today's Tella clips" ingest. Export/download the main Tella screen recording and subtitle file, then put them in:
+
+```text
+videos/<slug>/recording.mp4
+videos/<slug>/<anything>.srt
+```
+
+Optional clips are filename-based, so ordering is explicit:
+
+```text
+videos/<slug>/intro.mp4      # prepended before the screen body
+videos/<slug>/recording.mp4  # main narrated screen body
+videos/<slug>/outro.mp4      # appended after the body
+videos/<slug>/metadata.json  # YouTube title/description/tags/publishAt
+```
+
+Tella MCP is used for visual edits on the original Tella project — layout, zoom, highlight, blur, export — once the agent has the project IDs in `videos/<slug>/tella.json`. It does not yet auto-discover the day's recordings and decide which clip is intro/body/outro.
+
+There are two "make-video" layers:
+
+- **Claude skill:** [.claude/skills/make-video/SKILL.md](.claude/skills/make-video/SKILL.md) is the agent playbook. In Claude Code CLI, ask for `make video <slug>` and the agent should run the workflow, checkpoints, fixes, QA, publish, and retro.
+- **Bun command:** `bun run make-video <slug>` is the lower-level renderer. It assumes `script.json`, `recording.mp4`, and optional `intro.mp4`/`outro.mp4` already exist.
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -55,6 +80,7 @@
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
+    <li><a href="#how-you-run-it">How You Run It</a></li>
     <li><a href="#how-it-works">How It Works</a></li>
     <li>
       <a href="#design-decisions">Design Decisions</a>
@@ -115,11 +141,11 @@ aimh-video-engine is a **hybrid**: the **screen recording is the content**, and 
 
 ## How It Works
 
-Eight stages. Two human review checkpoints (✋), one human recording step (🎬), everything else automated.
+Eight stages. Human review checkpoints stay explicit where judgment matters; the agent handles the mechanical commands.
 
 ```
  INPUTS: Tella recordings (screen + rough scratch narration) · house-style.md
-         · curated music library · logo.png · reusable outro asset
+         · curated music library · logo.png · per-video intro/outro assets
 
  1. INGEST        Pull today's clips + timed transcripts from Tella (MCP).
         │
@@ -129,17 +155,18 @@ Eight stages. Two human review checkpoints (✋), one human recording step (🎬
         │         (durations drive the visual timing).
  4. VISUAL EDIT   Tella MCP: auto-zoom (declarative manualZoom cues) ·
    (Tella MCP)    fullscreen screen-only body layout · blur secrets ·
-        │         highlights.   (zoom/layout convention built; blur next)
+        │         highlights.
  5. ASSEMBLE+MUX  Tella export (4K, muted) → FFmpeg: lay VO · music bed ·
    (Tella+ffmpeg) logo overlay · optional captions · 3.5s chapter cards ·
-        │         prepend 🎬 real-face intro · append reusable outro.
+        │         prepend 🎬 real-face intro · append manual outro.
  6. QA            Claude renders frames + checks: durations align, captions
         │         match if enabled, secrets blurred, audio levels sane
         │         → auto-fix.  ✋ you watch
  7. PUBLISH       YouTube Data API: title + description (auto chapters),
         │         privacyStatus=private + publishAt → scheduled, auto-public.
- 8. RETRO         Claude proposes updates to house-style.md so the same
-   (self-improve)  mistakes aren't repeated. Next video starts smarter.
+ 8. RETRO         After upload/schedule, Claude drafts durable lessons in
+   (self-improve)  videos/<slug>/retro.json; approved rules merge into
+        │         house-style.md. Next video starts smarter.
 ```
 
 **The core insight — voice is the spine.** Because there is no face in the body, footage is sized to the voice (not the reverse). *Content is sacred; only idle/dead time is trimmed or sped up.* If footage is all-essential, Claude lengthens the narration instead of cutting. Action timing comes from your **live narration timestamps** ("now I click Deploy") in the timed transcript, plus Tella's cursor/click data. Tolerance is loose — no lip-sync — so "the click is on screen while you talk about it" is enough.
@@ -159,7 +186,7 @@ Every major fork, with the reasoning. This is the project's decision record.
 | 1 | **No HeyGen avatar** | For a screen-first / PiP format, a corner avatar is the worst-value spend. Tella records a real webcam face for free, which is more authentic for a small technical channel. Saved ~$29/mo + ~$18/video. |
 | 2 | **Faceless body** | You cannot have a real talking face *and* a rewritten voice — lips won't match. So the body shows the screen only; the cleaned voiceover plays over it. |
 | 3 | **Voiceover from a rewritten script ("Y-path")** | The whole point is to *ramble freely* while recording, then let Claude rewrite and a cloned voice deliver it. Cleaning your raw audio ("X-path") was **rejected** — for this creator the hard part is *performing*, not editing. |
-| 4 | **Real-face intro, reusable outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. Current convention: intro is face-only inside the blue grid frame. The reusable outro should be a fullscreen faceless branded end-card, but the pipeline appends whichever `outro.mp4` is supplied. |
+| 4 | **Real-face intro, manual outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. Current convention: intro is face-only inside the blue grid frame. For now, each video can supply a manual `videos/<slug>/outro.mp4`; the engine normalizes it and adds deterministic outro music underneath. A generated/reusable spoken outro is deferred to Stages 9–12. |
 | 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur/highlights). Dropping it to save $19 would forfeit both. CleanShotX kept for quick grabs only. |
 | 6 | **Claude orchestrates and writes the script (not ChatGPT)** | Claude is already the harness with the tools; routing the script to ChatGPT adds a key + cost + a copy-paste seam for no gain. Transcription is free from Tella. |
 | 7 | **ElevenLabs for voice (Multilingual v2)** | Replaces HeyGen's voice role — *not* an added subscription. v2 for consistent narration; Eleven v3 optional for more expression. |
@@ -205,8 +232,8 @@ For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.
 | Stage | Owner | Input → Output |
 |-------|-------|----------------|
 | 1. Ingest | `make-video` skill (Tella MCP) | Tella clips → `transcript.json` |
-| 2. Script | Claude ✋ | `transcript.json` → `script.md` (chunked) |
-| 3. Voice | `scripts/elevenlabs.ts` | `script.md` → `vo/*.mp3` + `durations.json` |
+| 2. Script | Claude ✋ | transcript + `house-style.md` → `script.json` |
+| 3. Voice | `src/elevenlabs.ts` | `script.json` → `vo/*.mp3` |
 | 4. Visual edit | `scripts/plan-zooms.ts` + Claude (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4`; body layout convention is fullscreen `screen-only`; blur/highlights are applied through Tella MCP when available |
 | 5. Mux | `scripts/make-video.ts` + `src/finish.ts` (FFmpeg) | visuals + VO + music + logo + optional captions + 3.5s chapter cards + intro + outro → `final.mp4` |
 | 6. QA | Claude ✋ | `final.mp4` → checks pass / fixes |
@@ -301,12 +328,17 @@ aimh-video-engine/
 
 ## Usage
 
-**Working today (thin slice):**
+**Working Today**
+
+The intended operator flow is agent-driven. You should be able to tell Claude Code CLI or Codex CLI to “make video `<slug>`,” then review the checkpoints. The agent can run lower-level commands internally, but you should not have to remember the whole command set.
 
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
 3. In Claude Code, invoke the **`make-video`** skill — Claude reads `house-style.md` plus the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (local `videos/<slug>/outro.mp4` wins over `assets/outro.mp4`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. Run `bun run qa <slug>` to validate the output (duration, 1080p, audio, and captions only if `captions.srt` exists; exits nonzero on failure) — it also prints **advisory, non-blocking** OCR-based secret-leak warnings — then review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--captions` opts into burned captions, `--no-cards` skips chapter cards, `--no-logo` skips the watermark, `--no-secrets` skips the secret scan.)
+4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, wraps a real-face `intro.mp4` plus manual per-video `outro.mp4`, and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. The agent runs QA, you review the result (✋), and you tell the agent what needs correction.
+5. If something is wrong, describe the issue in plain language. Examples: ElevenLabs mispronounced a term, Tella exported the wrong visual segment, a zoom/highlight/blur is misplaced, the intro/outro audio balance is off, or a layout/background needs changing. The agent should make the targeted fix, re-render, re-run QA, and ask you to review again.
+6. When approved, the agent uploads or schedules the video using the YouTube publishing step.
+7. At the end of the session, tell the agent: `run retro for <slug>`. The agent writes durable lessons into `videos/<slug>/retro.json`; you review the rules; then the agent runs `bun run retro <slug> --apply` to update `house-style.md`.
 
 ### Layout & Asset Conventions
 
@@ -323,13 +355,22 @@ ElevenLabs also supports pronunciation dictionaries through the Text-to-Speech A
 
 ### Post-Video Retro
 
-After a video is reviewed or published, run:
+The retro loop is intentionally review-gated. Use it after a video is uploaded or scheduled, when the session has enough context to know which corrections were durable.
+
+1. Finish/render/QA the video.
+2. Upload or schedule it to YouTube.
+3. At the end of the session, tell the agent: `run retro for <slug>`.
+4. The agent writes durable lessons into `videos/<slug>/retro.json`.
+5. You review the rules.
+6. The agent runs `bun run retro <slug> --apply`.
+
+For direct CLI use, create or review the retro file with:
 
 ```bash
 bun run retro <slug>
 ```
 
-This creates `videos/<slug>/retro.json` if it does not exist. Replace the template with durable lessons that should apply to future videos, then apply them:
+Replace the template with durable lessons that should apply to future videos, then apply them. The command refuses to apply the untouched placeholder template:
 
 ```bash
 bun run retro <slug> --apply
@@ -428,7 +469,7 @@ Project Link: [https://github.com/aimhco/aimh-video-engine](https://github.com/a
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- MARKDOWN LINKS & IMAGES -->
-[status-shield]: https://img.shields.io/badge/status-thin%20slice%20working-brightgreen?style=for-the-badge
+[status-shield]: https://img.shields.io/badge/status-core%20engine%20ready-brightgreen?style=for-the-badge
 [status-url]: #about-the-project
 [license-shield]: https://img.shields.io/github/license/aimhco/aimh-video-engine.svg?style=for-the-badge
 [license-url]: https://github.com/aimhco/aimh-video-engine/blob/main/LICENSE

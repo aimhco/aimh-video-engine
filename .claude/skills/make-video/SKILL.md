@@ -11,6 +11,10 @@ Turn a rough Tella screen recording into a finished, cleanly-narrated video. Thi
 
 The screen recording, re-voiced with a clean script in the user's cloned voice, with the footage **re-timed so what's on screen tracks what's being said**. The core engine includes intro/outro wrapping, auto-zoom, highlights/blur planning, captions when requested, music, chapter cards, YouTube publishing, and a retro loop that persists durable lessons in `house-style.md`.
 
+## Operator contract
+
+The user should be able to ask for "make video `<slug>`" and then respond at review checkpoints. The agent owns the lower-level commands (`make-video`, Tella MCP apply/export, `qa`, `publish`, `retro`) and should run, verify, and repeat them as needed. If the user reports a correction in plain language, make the targeted fix, re-render, re-run QA, and ask for review again.
+
 ## Prerequisites
 
 - Run from the `aimh-video-engine` repo (Bun + FFmpeg installed). Captions need a **libass-enabled** ffmpeg (`ffmpeg -version | grep libass`); if absent, install `ffmpeg-full` and set `FFMPEG`/`FFPROBE` in `.env` to its binaries.

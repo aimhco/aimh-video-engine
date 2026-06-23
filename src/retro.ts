@@ -62,6 +62,13 @@ export function parseRetroInput(raw: unknown): RetroInput {
   };
 }
 
+export function hasPlaceholderRules(retro: RetroInput): boolean {
+  return retro.rules.some((rule) =>
+    rule.rule.includes("Replace this with one durable lesson") ||
+    rule.reason?.includes("What happened in this video") === true
+  );
+}
+
 function titleCase(value: string): string {
   return value.trim().replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
