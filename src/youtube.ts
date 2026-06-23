@@ -19,6 +19,7 @@ export interface YouTubeMetadata {
   tags?: string[];
   categoryId?: string;
   privacyStatus?: "private";
+  publishAt?: string;
   selfDeclaredMadeForKids?: boolean;
 }
 
@@ -121,9 +122,17 @@ export async function refreshAccessToken(opts: {
   return postToken(buildRefreshTokenBody(opts), opts.fetchImpl ?? fetch);
 }
 
+export function normalizePublishAt(publishAt: string): string {
+  const date = new Date(publishAt);
+  if (!Number.isFinite(date.getTime())) {
+    throw new Error("publishAt must be a valid RFC 3339 timestamp");
+  }
+  return date.toISOString();
+}
+
 export function buildVideoResource(meta: YouTubeMetadata): {
   snippet: { title: string; description: string; tags?: string[]; categoryId: string };
-  status: { privacyStatus: "private"; selfDeclaredMadeForKids: boolean };
+  status: { privacyStatus: "private"; selfDeclaredMadeForKids: boolean; publishAt?: string };
 } {
   if (meta.privacyStatus && meta.privacyStatus !== "private") {
     throw new Error("Only private YouTube uploads are supported in this slice");
@@ -139,6 +148,7 @@ export function buildVideoResource(meta: YouTubeMetadata): {
     status: {
       privacyStatus: "private",
       selfDeclaredMadeForKids: meta.selfDeclaredMadeForKids ?? false,
+      ...(meta.publishAt ? { publishAt: normalizePublishAt(meta.publishAt) } : {}),
     },
   };
 }

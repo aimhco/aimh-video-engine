@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Thin slice working.** The core pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + reusable outro wrap → logo overlay → music bed under intro/chapter cards → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. **Next:** active Tella-MCP blur application in a fresh MCP-enabled session and scheduled YouTube publishing. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Core engine nearly closed.** The pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. **Next:** scheduled YouTube publishing (`publishAt`) and the post-video retro loop. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -273,7 +273,7 @@ aimh-video-engine/
 
 ## Getting Started
 
-> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, and fullscreen body-layout conventions. Remaining polish work is Tella-MCP blur/highlights and YouTube publishing.
+> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, fullscreen body-layout conventions, and deterministic music under manual outros. Remaining Stage 1–8 work is scheduled YouTube publishing plus the post-video retro loop.
 
 ### Prerequisites
 
@@ -321,11 +321,13 @@ The ElevenLabs call prepares TTS-only text before sending it to `eleven_multilin
 
 ElevenLabs also supports pronunciation dictionaries through the Text-to-Speech API. Set `ELEVENLABS_PRONUNCIATION_DICTIONARY_ID` and `ELEVENLABS_PRONUNCIATION_DICTIONARY_VERSION_ID` to pass `pronunciation_dictionary_locators` on each synthesis request.
 
-**Planned:** Tella-MCP blur/highlights and scheduled YouTube publishing.
+**Planned inside Stages 1–8:** scheduled YouTube publishing (`publishAt`) and the post-video retro loop.
 
-### YouTube Private Upload
+**Deferred to Stages 9–12:** generated spoken-outro wiring and word-level captions after the new-mic re-record.
 
-The first publishing slice uploads `videos/<slug>/final.mp4` as a **private** YouTube video. Scheduling/public release stays separate.
+### YouTube Upload And Scheduling
+
+The current publishing slice uploads `videos/<slug>/final.mp4` as a **private** YouTube video by default, and optionally schedules it with `publishAt`.
 
 1. Create a Desktop OAuth client in Google Cloud with the YouTube Data API enabled.
 2. Set `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET` in `.env`.
@@ -338,12 +340,14 @@ The first publishing slice uploads `videos/<slug>/final.mp4` as a **private** Yo
   "description": "Video description",
   "tags": ["aimh", "video"],
   "privacyStatus": "private",
+  "publishAt": "2026-06-25T14:00:00Z",
   "selfDeclaredMadeForKids": false
 }
 ```
 
-5. Check the request without uploading: `bun run publish <slug> --dry-run`.
-6. Upload only when ready: `bun run publish <slug> --yes`.
+5. Omit `publishAt` for a plain private upload. Include it for a scheduled release. The timestamp must be a valid RFC 3339 datetime.
+6. Check the request without uploading: `bun run publish <slug> --dry-run`.
+7. Upload only when ready: `bun run publish <slug> --yes`.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

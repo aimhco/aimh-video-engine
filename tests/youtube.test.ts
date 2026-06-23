@@ -5,6 +5,7 @@ import {
   buildResumableUploadInit,
   buildTokenExchangeBody,
   buildVideoResource,
+  normalizePublishAt,
   YOUTUBE_UPLOAD_SCOPE,
 } from "../src/youtube";
 
@@ -79,6 +80,29 @@ test("buildVideoResource defaults to private and not made for kids", () => {
   });
 });
 
+test("buildVideoResource includes a normalized publishAt when scheduling", () => {
+  expect(buildVideoResource({
+    title: "Scheduled upload",
+    description: "Build notes",
+    publishAt: "2026-06-25T10:30:00-04:00",
+  })).toEqual({
+    snippet: {
+      title: "Scheduled upload",
+      description: "Build notes",
+      categoryId: "28",
+    },
+    status: {
+      privacyStatus: "private",
+      selfDeclaredMadeForKids: false,
+      publishAt: "2026-06-25T14:30:00.000Z",
+    },
+  });
+});
+
+test("normalizePublishAt rejects invalid schedule timestamps", () => {
+  expect(() => normalizePublishAt("not-a-date")).toThrow("publishAt must be a valid RFC 3339 timestamp");
+});
+
 test("buildResumableUploadInit prepares a private videos.insert request", () => {
   const init = buildResumableUploadInit({
     accessToken: "access_123",
@@ -99,5 +123,21 @@ test("buildResumableUploadInit prepares a private videos.insert request", () => 
   expect(init.headers["X-Upload-Content-Type"]).toBe("video/mp4");
   expect(JSON.parse(init.body)).toMatchObject({
     status: { privacyStatus: "private" },
+  });
+});
+
+test("buildResumableUploadInit includes publishAt in the request body when present", () => {
+  const init = buildResumableUploadInit({
+    accessToken: "access_123",
+    contentLength: 12345,
+    metadata: {
+      title: "Scheduled upload",
+      description: "Smoke test",
+      publishAt: "2026-06-25T14:30:00Z",
+    },
+  });
+
+  expect(JSON.parse(init.body)).toMatchObject({
+    status: { privacyStatus: "private", publishAt: "2026-06-25T14:30:00.000Z" },
   });
 });

@@ -2,6 +2,13 @@
 
 This document covers the **deferred** stages of `aimh-video-engine` — the multi-platform and growth layer that sits on top of the core engine (Stages 1–8, see [`README.md`](./README.md)). None of these are built or required for the core "ramble → finished YouTube video" loop. They are designed for now so the architecture accommodates them without a rewrite.
 
+## Current Core-Engine Closure Plan
+
+- **Finish Stage 8 / C1 first:** done in practice for the current manual workflow. Intro music, chapter-card music, and deterministic manual-outro music are all implemented.
+- **Next core item:** `C5` — finish scheduled YouTube publishing on top of the already-proven private upload flow.
+- **Then:** `C3` — the post-video retro / `house-style.md` loop. This is intentionally deferred until the user explicitly requests a higher-reasoning model/session for that design pass.
+- **Moved out of the core-engine closeout and into Stages 9–12:** `C2` generated spoken-outro engine wiring, and `C4` word-level captions after the new-mic re-record.
+
 **Design principle that makes this possible:** every provider sits behind a clean interface. Each future stage is a module that consumes the core engine's `final.mp4` + metadata and is independently swappable.
 
 ---
@@ -22,6 +29,8 @@ This document covers the **deferred** stages of `aimh-video-engine` — the mult
 **Goal:** Automatically generate 3–5 vertical short-form clips from each finished long video.
 
 **Interface:** `final.mp4 → shorts/*.mp4` (vertical, captioned)
+
+**Also deferred here:** optional generated spoken-outro wiring can land in this future-wave bucket rather than blocking the core manual-outro workflow.
 
 **Candidate tools:**
 - **OpusClip** — virality scoring, auto-captions, has an API, schedules to Shorts/TikTok/IG/etc.
@@ -71,6 +80,8 @@ This document covers the **deferred** stages of `aimh-video-engine` — the mult
 
 **Interface:** `topic + key frame → thumbnail.png`
 
+**Also deferred here:** word-level caption polish after the new-mic re-record, if that remains valuable once the core tool is in real use.
+
 **Candidate approaches:**
 - Templated (brand layout + a hero screenshot + text) rendered as code.
 - An image model via **fal.ai** / **kie.ai** for backgrounds or stylized variants.
@@ -93,4 +104,4 @@ Kept behind clean interfaces so they can be swapped without touching other stage
 
 ---
 
-_Last updated: 2026-06-18. This plan is intentionally high-level; each stage gets its own detailed spec + implementation plan when it moves from 🔲 to 🟢._
+_Last updated: 2026-06-22. This plan is intentionally high-level; each stage gets its own detailed spec + implementation plan when it moves from 🔲 to 🟢._
