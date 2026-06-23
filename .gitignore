@@ -17,6 +17,7 @@ videos/
 *.mp3
 *.wav
 *.m4a
+assets/outro-spoken.mp3
 
 # Test-generated fixtures (media + scratch). Intentional fixtures are force-added (git add -f).
 tests/fixtures/
