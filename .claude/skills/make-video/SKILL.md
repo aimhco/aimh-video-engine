@@ -9,17 +9,18 @@ Turn a rough Tella screen recording into a finished, cleanly-narrated video. Thi
 
 ## What it produces
 
-The screen recording, re-voiced with a clean script in the user's cloned voice, with the footage **re-timed so what's on screen tracks what's being said**. This is the core "thin slice"; intro/outro, auto-zoom, captions, music, chapter cards, and YouTube publishing are later stages.
+The screen recording, re-voiced with a clean script in the user's cloned voice, with the footage **re-timed so what's on screen tracks what's being said**. The core engine includes intro/outro wrapping, auto-zoom, highlights/blur planning, captions when requested, music, chapter cards, YouTube publishing, and a retro loop that persists durable lessons in `house-style.md`.
 
 ## Prerequisites
 
 - Run from the `aimh-video-engine` repo (Bun + FFmpeg installed). Captions need a **libass-enabled** ffmpeg (`ffmpeg -version | grep libass`); if absent, install `ffmpeg-full` and set `FFMPEG`/`FFPROBE` in `.env` to its binaries.
 - `.env` with `ELEVENLABS_API_KEY` + `ELEVENLABS_VOICE_ID` (a cloned voice). Optional `FFMPEG`/`FFPROBE` override the ffmpeg/ffprobe binary paths.
 - In `videos/<slug>/`: the recording as `recording.mp4` and the Tella subtitle export as a `.srt` file.
+- Read root `house-style.md` before scripting. Its rules are durable guidance from previous videos.
 
 ## Steps
 
-1. **Read the inputs.** In `videos/<slug>/`, read the `.srt` (cue-level timestamped text — this is your transcript) and `ffprobe` the recording for its duration.
+1. **Read the inputs.** Read root `house-style.md`. In `videos/<slug>/`, read the `.srt` (cue-level timestamped text — this is your transcript) and `ffprobe` the recording for its duration.
 
 2. **Write a clean, chunked script** to `videos/<slug>/script.json` — an array of `{ id, text, sourceStart, sourceEnd }`:
    - **Ground every chunk in the SRT** — never narrate something that isn't in the recording.
@@ -37,6 +38,8 @@ The screen recording, re-voiced with a clean script in the user's cloned voice, 
 
 6. **Review `final.mp4` with the user** (✋ checkpoint). To iterate, edit `script.json` and re-run.
    - ⚠️ The voice cache is keyed by chunk `id`. If you change a chunk's **text**, delete its `videos/<slug>/vo/<id>.mp3` (or the whole `vo/` dir) to force re-synthesis.
+
+7. **Run the retro loop after review/publish.** Use `bun run retro <slug>` to create `videos/<slug>/retro.json` if needed. Add only durable lessons that should apply to future videos, then run `bun run retro <slug> --apply` to merge approved rules into `house-style.md`. The merge is idempotent and skips duplicate rules.
 
 ## Notes
 

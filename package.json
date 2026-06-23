@@ -9,6 +9,7 @@
     "plan-zooms": "bun run scripts/plan-zooms.ts",
     "publish": "bun run scripts/publish.ts",
     "qa": "bun run scripts/qa.ts",
+    "retro": "bun run scripts/retro.ts",
     "test": "bun test",
     "youtube-login": "bun run scripts/youtube-login.ts"
   },

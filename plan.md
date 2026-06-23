@@ -2,11 +2,11 @@
 
 This document covers the **deferred** stages of `aimh-video-engine` — the multi-platform and growth layer that sits on top of the core engine (Stages 1–8, see [`README.md`](./README.md)). None of these are built or required for the core "ramble → finished YouTube video" loop. They are designed for now so the architecture accommodates them without a rewrite.
 
-## Current Core-Engine Closure Plan
+## Current Core-Engine Status
 
 - **Finish Stage 8 / C1 first:** done in practice for the current manual workflow. Intro music, chapter-card music, and deterministic manual-outro music are all implemented.
-- **Next core item:** `C5` — finish scheduled YouTube publishing on top of the already-proven private upload flow.
-- **Then:** `C3` — the post-video retro / `house-style.md` loop. This is intentionally deferred until the user explicitly requests a higher-reasoning model/session for that design pass.
+- **C5:** done. YouTube publishing supports private upload plus optional `publishAt` scheduling.
+- **C3:** done. `bun run retro <slug>` creates a reviewable per-video retro file, and `bun run retro <slug> --apply` merges approved durable lessons into `house-style.md` idempotently.
 - **Moved out of the core-engine closeout and into Stages 9–12:** `C2` generated spoken-outro engine wiring, and `C4` word-level captions after the new-mic re-record.
 
 **Design principle that makes this possible:** every provider sits behind a clean interface. Each future stage is a module that consumes the core engine's `final.mp4` + metadata and is independently swappable.

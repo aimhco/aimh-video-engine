@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Core engine nearly closed.** The pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. **Next:** scheduled YouTube publishing (`publishAt`) and the post-video retro loop. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Core engine closed for real use.** The pipeline runs end-to-end — a Tella screen recording + its `.srt` becomes a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script guided by `house-style.md` → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. Publishing supports private upload plus optional `publishAt`, and `bun run retro <slug>` keeps recurring lessons in `house-style.md`. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -211,7 +211,7 @@ For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.
 | 5. Mux | `scripts/make-video.ts` + `src/finish.ts` (FFmpeg) | visuals + VO + music + logo + optional captions + 3.5s chapter cards + intro + outro → `final.mp4` |
 | 6. QA | Claude ✋ | `final.mp4` → checks pass / fixes |
 | 7. Publish | `scripts/publish.ts` (YouTube API) | `final.mp4` + `metadata.json` → scheduled video |
-| 8. Retro | Claude | corrections → `house-style.md` diff |
+| 8. Retro | Claude + `scripts/retro.ts` | approved corrections → `house-style.md` |
 
 **Guiding principle: Claude does judgment, scripts do determinism.** The LLM handles taste (script, zoom placement, music choice, QA). Small `bun`-run TypeScript scripts handle the mechanical work (API calls, FFmpeg, upload) so they're reliable, testable, and re-runnable without spending tokens. Every stage reads/writes **files** in `videos/<slug>/`, so any stage re-runs independently.
 
@@ -273,7 +273,7 @@ aimh-video-engine/
 
 ## Getting Started
 
-> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, fullscreen body-layout conventions, and deterministic music under manual outros. Remaining Stage 1–8 work is scheduled YouTube publishing plus the post-video retro loop.
+> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, fullscreen body-layout conventions, deterministic music under manual outros, scheduled YouTube publishing, and the post-video retro loop.
 
 ### Prerequisites
 
@@ -305,7 +305,7 @@ aimh-video-engine/
 
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
-3. In Claude Code, invoke the **`make-video`** skill — Claude reads the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
+3. In Claude Code, invoke the **`make-video`** skill — Claude reads `house-style.md` plus the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
 4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, optionally wraps a real-face `intro.mp4` + reusable `outro.mp4` (local `videos/<slug>/outro.mp4` wins over `assets/outro.mp4`), and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. Run `bun run qa <slug>` to validate the output (duration, 1080p, audio, and captions only if `captions.srt` exists; exits nonzero on failure) — it also prints **advisory, non-blocking** OCR-based secret-leak warnings — then review it (✋). (Add per-chunk `zoom` cues to `script.json` and run `bun run plan-zooms <slug>` to apply auto-zoom in Tella first; `--captions` opts into burned captions, `--no-cards` skips chapter cards, `--no-logo` skips the watermark, `--no-secrets` skips the secret scan.)
 
 ### Layout & Asset Conventions
@@ -321,7 +321,21 @@ The ElevenLabs call prepares TTS-only text before sending it to `eleven_multilin
 
 ElevenLabs also supports pronunciation dictionaries through the Text-to-Speech API. Set `ELEVENLABS_PRONUNCIATION_DICTIONARY_ID` and `ELEVENLABS_PRONUNCIATION_DICTIONARY_VERSION_ID` to pass `pronunciation_dictionary_locators` on each synthesis request.
 
-**Planned inside Stages 1–8:** scheduled YouTube publishing (`publishAt`) and the post-video retro loop.
+### Post-Video Retro
+
+After a video is reviewed or published, run:
+
+```bash
+bun run retro <slug>
+```
+
+This creates `videos/<slug>/retro.json` if it does not exist. Replace the template with durable lessons that should apply to future videos, then apply them:
+
+```bash
+bun run retro <slug> --apply
+```
+
+The command merges approved rules into `house-style.md` and skips duplicates, so reruns are safe.
 
 **Deferred to Stages 9–12:** generated spoken-outro wiring and word-level captions after the new-mic re-record.
 
