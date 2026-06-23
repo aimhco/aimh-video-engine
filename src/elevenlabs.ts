@@ -15,7 +15,9 @@ interface SpeechRequestBody {
 }
 
 export function prepareTextForSpeech(text: string): string {
-  return text.replace(/\baimh\.co\b/gi, "A-I-M-H dot co");
+  return text
+    .replace(/\bwww\.aimh\.co\b/gi, "A-I-M-H dot co")
+    .replace(/\baimh\.co\b/gi, "A-I-M-H dot co");
 }
 
 export function buildSpeechRequestBody(text: string, env: Env = process.env): SpeechRequestBody {

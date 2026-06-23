@@ -1,13 +1,9 @@
 # Spoken Outro Script
 
-Primary take:
+Universal take:
 
-> If this was useful, the project is open source at aimh.co and on GitHub under aimhco slash aimh-video-engine. I am building it in public, so if you try it, improve it, or spot a better way to automate this workflow, send it my way. Subscribe if you want to follow the next iteration.
-
-Short take:
-
-> The project is open source at aimh.co and on GitHub under aimhco slash aimh-video-engine. If you try it or improve it, send it my way. Subscribe to follow the next build.
+> If you enjoyed this video, please like and subscribe. I’m building AI products in public with one mission: solving real problems and bringing people together. You can follow the full journey and see everything I’m building at www.aimh.co. Thanks for watching.
 
 Production note:
 
-Use the primary take when the outro has room for a warmer close. Use the short take when the final video already feels long or the end-card needs to stay tight.
+Use this as the default reusable spoken outro across videos unless a specific video needs a one-off closing line.

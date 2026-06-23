@@ -25,6 +25,12 @@ test("prepareTextForSpeech rewrites aimh.co for reliable TTS pronunciation", () 
   );
 });
 
+test("prepareTextForSpeech rewrites www.aimh.co to a cleaner spoken form", () => {
+  expect(prepareTextForSpeech("See everything at www.aimh.co today.")).toBe(
+    "See everything at A-I-M-H dot co today.",
+  );
+});
+
 test("buildSpeechRequestBody includes pronunciation dictionary locators when configured", () => {
   const body = buildSpeechRequestBody("Visit aimh.co", {
     ELEVENLABS_PRONUNCIATION_DICTIONARY_ID: "dict_123",

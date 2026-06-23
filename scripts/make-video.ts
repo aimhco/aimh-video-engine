@@ -5,7 +5,7 @@ import { assembleVideo, wrapVideo, overlayLogo, insertChapterCards, mixMusicUnde
 import { planCaptions, toSrt } from "../src/captions";
 import { deriveChapters, chapterOffsetSec } from "../src/chapters";
 import { cardSvg, renderCardPng, renderCardClip } from "../src/cards";
-import { pickTrack } from "../src/music";
+import { resolveMusicSelection } from "../src/music";
 import { captionsEnabledFromArgs } from "../src/options";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
@@ -71,14 +71,19 @@ const outro = (await Bun.file(`${dir}/outro.mp4`).exists())
 let bodyForWrap = body;
 const chapters = process.argv.includes("--no-cards") ? [] : deriveChapters(script);
 let bodyTrack: string | undefined;
-if (chapters.length || intro) {
+let outroTrack: string | undefined;
+if (chapters.length || intro || outro) {
   const musicJson = `${dir}/music.json`;
-  if (await Bun.file(musicJson).exists()) {
-    bodyTrack = ((await Bun.file(musicJson).json()) as { bodyTrack?: string | null }).bodyTrack ?? undefined;
-  } else {
-    const tracks = (await Array.fromAsync(new Bun.Glob("Body_*.mp3").scan({ cwd: "assets/music", absolute: true }))).sort();
-    bodyTrack = pickTrack(slug, tracks);
-    await Bun.write(musicJson, JSON.stringify({ bodyTrack: bodyTrack ?? null }, null, 2));
+  const current = (await Bun.file(musicJson).exists())
+    ? (await Bun.file(musicJson).json()) as { bodyTrack?: string | null; outroTrack?: string | null }
+    : {};
+  const bodyTracks = (await Array.fromAsync(new Bun.Glob("Body_*.mp3").scan({ cwd: "assets/music", absolute: true }))).sort();
+  const outroTracks = (await Array.fromAsync(new Bun.Glob("Outro_*.mp3").scan({ cwd: "assets/music", absolute: true }))).sort();
+  const selection = resolveMusicSelection(slug, current, bodyTracks, outroTracks);
+  bodyTrack = selection.bodyTrack;
+  outroTrack = selection.outroTrack;
+  if (selection.changed || !(await Bun.file(musicJson).exists())) {
+    await Bun.write(musicJson, JSON.stringify(selection.persisted, null, 2));
   }
 }
 
@@ -106,9 +111,19 @@ if (intro && bodyTrack) {
   console.log(`+ intro music: ${bodyTrack.split("/").pop()}`);
 }
 if (intro) console.log(`+ intro: ${intro}`);
+let outroForWrap = outro;
+if (outro && outroTrack) {
+  outroForWrap = await mixMusicUnderVideo({
+    video: outro,
+    musicFile: outroTrack,
+    out: `${dir}/work/outro-music.mp4`,
+    musicOffsetSec: 0,
+  });
+  console.log(`+ outro music: ${outroTrack.split("/").pop()}`);
+}
 if (outro) console.log(`+ outro: ${outro}`);
 
-const out = await wrapVideo({ body: bodyForWrap, intro: introForWrap, outro, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
+const out = await wrapVideo({ body: bodyForWrap, intro: introForWrap, outro: outroForWrap, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
 
 // Branding: overlay the logo watermark over the whole final video. On by default; --no-logo skips.
 const logoEnabled = !process.argv.includes("--no-logo");
