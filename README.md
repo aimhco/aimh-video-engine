@@ -187,7 +187,7 @@ Every major fork, with the reasoning. This is the project's decision record.
 | 2 | **Faceless body** | You cannot have a real talking face *and* a rewritten voice — lips won't match. So the body shows the screen only; the cleaned voiceover plays over it. |
 | 3 | **Voiceover from a rewritten script ("Y-path")** | The whole point is to *ramble freely* while recording, then let Claude rewrite and a cloned voice deliver it. Cleaning your raw audio ("X-path") was **rejected** — for this creator the hard part is *performing*, not editing. |
 | 4 | **Real-face intro, manual outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. Current convention: intro is face-only inside the blue grid frame. For now, each video can supply a manual `videos/<slug>/outro.mp4`; the engine normalizes it and adds deterministic outro music underneath. A generated/reusable spoken outro is deferred to Stages 9–12. |
-| 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur/highlights). Dropping it to save $19 would forfeit both. CleanShotX kept for quick grabs only. |
+| 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur/highlights). Dropping it to save $26 would forfeit both. CleanShotX kept for quick grabs only. |
 | 6 | **Claude orchestrates and writes the script (not ChatGPT)** | Claude is already the harness with the tools; routing the script to ChatGPT adds a key + cost + a copy-paste seam for no gain. Transcription is free from Tella. |
 | 7 | **ElevenLabs for voice (Multilingual v2)** | Replaces HeyGen's voice role — *not* an added subscription. v2 for consistent narration; Eleven v3 optional for more expression. |
 | 8 | **FFmpeg for audio + branding** | Tella's MCP can't replace audio or add music, so FFmpeg muxes the VO, normalizes intro/outro audio, mixes a music bed under the spoken intro and transition cards, overlays the logo, and can burn captions when `--captions` is explicitly requested. |
@@ -212,13 +212,13 @@ Every major fork, with the reasoning. This is the project's decision record.
 
 | Item | Role | Cost |
 |------|------|------|
-| **Tella Pro** | Record + edit engine + MCP | **$19/mo** ($12 annual) |
+| **Tella Pro** | Record + edit engine + MCP | **$26/mo** |
 | **ElevenLabs Creator** | Cloned voice | **$22/mo** (or Starter $5 to validate) |
 | Claude Code | Orchestrator + scriptwriter | already owned |
 | FFmpeg / CleanShotX | Audio/branding / capture | free |
 | YouTube Data API | Publishing | free |
 | HeyGen | — cut — | $0 |
-| **Fixed total** | | **~$41/mo** |
+| **Fixed total** | | **~$48/mo** |
 | **Per ~4.5-min video** | within plan limits | **~$0** (~20+ videos/mo before overage) |
 
 For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.

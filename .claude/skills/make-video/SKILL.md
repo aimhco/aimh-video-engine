@@ -45,6 +45,12 @@ The user should be able to ask for "make video `<slug>`" and then respond at rev
 
 7. **Run the retro loop after review/publish.** Use `bun run retro <slug>` to create `videos/<slug>/retro.json` if needed. Add only durable lessons that should apply to future videos, then run `bun run retro <slug> --apply` to merge approved rules into `house-style.md`. The merge is idempotent and skips duplicate rules.
 
+8. **Clean up the video folder once the user is satisfied** (✋ confirm before deleting). Each `videos/<slug>/` folder is large (often hundreds of MB). After delivery/publish, offer to remove **derived/scratch** artifacts and keep only the **reproducible set**.
+   - **Safe to delete (regenerated on any re-render):** `work/` (ffmpeg scratch — usually the biggest), `body.mp4`, `body-cards.mp4`, `.DS_Store`, and any exact-duplicate source copies (e.g. a downloaded `*-Intro.mp4` identical to `intro.mp4`).
+   - **Delete on the user's confirmation:** `final_old.mp4` (superseded renders) and high-res source originals once the finished `final.mp4` is approved (e.g. a 4K `*-Body.mp4` after `recording.mp4` is derived).
+   - **Always keep — re-renders `final.mp4` with no ElevenLabs re-spend:** `final.mp4`, `recording.mp4`, `intro.mp4`, `outro.mp4`, `vo/`, `script.json`, `metadata.json`, `music.json`, `retro.json`, the `*.srt`, and `tella.json`/overlay JSON if present.
+   - Report the before/after folder size so the user sees the savings.
+
 ## Notes
 
 - Voice model: ElevenLabs `eleven_multilingual_v2`. The synthesized audio plays at natural pace; only the *footage* is sped/slowed to match it (no audio time-stretch, no lip-sync — there's no face in the body).
