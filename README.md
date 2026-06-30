@@ -19,7 +19,7 @@
   <p align="center">
     <strong>Ramble at your screen. Get a finished YouTube video. Automatically.</strong>
     <br />
-    A Claude Code pipeline that turns daily screen recordings + messy narration into a
+    An agent-driven pipeline that turns daily screen recordings + messy narration into a
     polished, narrated, branded video — and schedules it to YouTube.
     <br />
     <br />
@@ -41,7 +41,7 @@
 
 </div>
 
-> **🟢 Status: Core engine ready for real videos.** Stages 1–8 are implemented for the current workflow: local Tella export in, polished narrated YouTube-ready video out. The pipeline turns a Tella screen recording + `.srt` into a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](.claude/skills/make-video/SKILL.md) skill). **Built:** `.srt` → clean chunked script guided by `house-style.md` → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. Publishing supports private upload plus optional `publishAt`, and `bun run retro <slug>` keeps recurring lessons in `house-style.md`. Future stages (9–12) live in [`plan.md`](./plan.md).
+> **🟢 Status: Core engine ready for real videos.** Stages 1–8 are implemented for the current workflow: local Tella export in, polished narrated YouTube-ready video out. The pipeline turns a Tella screen recording + `.srt` into a finished, re-voiced **1080p** video in your cloned voice, with footage re-timed to the narration (via the [`make-video`](https://github.com/aimhco/skills/tree/main/make-video) skill, mirrored in this repo for Claude Code and Codex). **Built:** `.srt` → clean chunked script guided by `house-style.md` → ElevenLabs voice with TTS-safe brand pronunciation → footage re-sync → FFmpeg assembly (H.264 `crf 18` + 160k AAC) → optional real-face intro + manual per-video outro wrap → logo overlay → music bed under intro/chapter cards/outro → 3.5s animated chapter cards → `adjustments.json` review summary, plus **declarative per-chunk auto-zoom** via the Tella MCP (`plan-zooms` → steady `manualZoom`, applied on the original recording before re-timing). Long-form renders do **not** burn captions by default; use `--captions` only for short-form or explicit captioned variants. Publishing supports private upload plus optional `publishAt`, and `bun run retro <slug>` keeps recurring lessons in `house-style.md`. Future stages (9–12) live in [`plan.md`](./plan.md).
 
 ### How You Run It
 
@@ -63,9 +63,10 @@ videos/<slug>/metadata.json  # YouTube title/description/tags/publishAt
 
 Tella MCP is used for visual edits on the original Tella project — layout, zoom, highlight, blur, export — once the agent has the project IDs in `videos/<slug>/tella.json`. It does not yet auto-discover the day's recordings and decide which clip is intro/body/outro.
 
-There are two "make-video" layers:
+There are three "make-video" layers:
 
-- **Claude skill:** [.claude/skills/make-video/SKILL.md](.claude/skills/make-video/SKILL.md) is the agent playbook. In Claude Code CLI, ask for `make video <slug>` and the agent should run the workflow, checkpoints, fixes, QA, publish, and retro.
+- **Canonical skill:** [`aimhco/skills/make-video`](https://github.com/aimhco/skills/tree/main/make-video) is the reusable agent playbook.
+- **Repo mirrors:** [.agents/skills/make-video/SKILL.md](.agents/skills/make-video/SKILL.md) is Codex-discoverable, and [.claude/skills/make-video/SKILL.md](.claude/skills/make-video/SKILL.md) is kept for Claude Code. In either Codex or Claude Code, ask for `make video <slug>` and the agent should run the workflow, checkpoints, fixes, QA, publish, and retro.
 - **Bun command:** `bun run make-video <slug>` is the lower-level renderer. It assumes `script.json`, `recording.mp4`, and optional `intro.mp4`/`outro.mp4` already exist.
 
 <!-- TABLE OF CONTENTS -->
@@ -128,7 +129,7 @@ aimh-video-engine is a **hybrid**: the **screen recording is the content**, and 
 
 | Tool | Role |
 |------|------|
-| [Claude Code](https://claude.com/claude-code) | Orchestrator + scriptwriter + QA (the brain) |
+| [Claude Code](https://claude.com/claude-code) / [Codex](https://openai.com/codex/) | Orchestrator + scriptwriter + QA (the brain) |
 | [Tella](https://www.tella.com/) (+ [MCP](https://www.tella.com/docs/mcp-server)) | Screen recording, visual editing, the automation surface |
 | [ElevenLabs](https://elevenlabs.io/) | Your cloned voice (Multilingual v2 default) |
 | [FFmpeg](https://ffmpeg.org/) | Voiceover mux, music bed, logo overlay, optional burned captions |
@@ -149,7 +150,7 @@ Eight stages. Human review checkpoints stay explicit where judgment matters; the
 
  1. INGEST        Pull today's clips + timed transcripts from Tella (MCP).
         │
- 2. SCRIPT        Claude rewrites the messy transcript → clean, chunked
+ 2. SCRIPT        Agent rewrites the messy transcript → clean, chunked
         │         narration, grounded strictly in the transcript.   ✋ you edit
  3. VOICE         ElevenLabs → one VO clip per chunk in your cloned voice
         │         (durations drive the visual timing).
@@ -159,17 +160,17 @@ Eight stages. Human review checkpoints stay explicit where judgment matters; the
  5. ASSEMBLE+MUX  Tella export (4K, muted) → FFmpeg: lay VO · music bed ·
    (Tella+ffmpeg) logo overlay · optional captions · 3.5s chapter cards ·
         │         prepend 🎬 real-face intro · append manual outro.
- 6. QA            Claude renders frames + checks: durations align, captions
+ 6. QA            Agent checks: durations align, captions
         │         match if enabled, secrets blurred, audio levels sane
         │         → auto-fix.  ✋ you watch
  7. PUBLISH       YouTube Data API: title + description (auto chapters),
         │         privacyStatus=private + publishAt → scheduled, auto-public.
- 8. RETRO         After upload/schedule, Claude drafts durable lessons in
+ 8. RETRO         After upload/schedule, agent drafts durable lessons in
    (self-improve)  videos/<slug>/retro.json; approved rules merge into
         │         house-style.md. Next video starts smarter.
 ```
 
-**The core insight — voice is the spine.** Because there is no face in the body, footage is sized to the voice (not the reverse). *Content is sacred; only idle/dead time is trimmed or sped up.* If footage is all-essential, Claude lengthens the narration instead of cutting. Action timing comes from your **live narration timestamps** ("now I click Deploy") in the timed transcript, plus Tella's cursor/click data. Tolerance is loose — no lip-sync — so "the click is on screen while you talk about it" is enough.
+**The core insight — voice is the spine.** Because there is no face in the body, footage is sized to the voice (not the reverse). *Content is sacred; only idle/dead time is trimmed or sped up.* If footage is all-essential, the agent lengthens the narration instead of cutting. Action timing comes from your **live narration timestamps** ("now I click Deploy") in the timed transcript, plus Tella's cursor/click data. Tolerance is loose — no lip-sync — so "the click is on screen while you talk about it" is enough.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -185,13 +186,13 @@ Every major fork, with the reasoning. This is the project's decision record.
 |---|----------|-----|
 | 1 | **No HeyGen avatar** | For a screen-first / PiP format, a corner avatar is the worst-value spend. Tella records a real webcam face for free, which is more authentic for a small technical channel. Saved ~$29/mo + ~$18/video. |
 | 2 | **Faceless body** | You cannot have a real talking face *and* a rewritten voice — lips won't match. So the body shows the screen only; the cleaned voiceover plays over it. |
-| 3 | **Voiceover from a rewritten script ("Y-path")** | The whole point is to *ramble freely* while recording, then let Claude rewrite and a cloned voice deliver it. Cleaning your raw audio ("X-path") was **rejected** — for this creator the hard part is *performing*, not editing. |
+| 3 | **Voiceover from a rewritten script ("Y-path")** | The whole point is to *ramble freely* while recording, then let an agent rewrite and a cloned voice deliver it. Cleaning your raw audio ("X-path") was **rejected** — for this creator the hard part is *performing*, not editing. |
 | 4 | **Real-face intro, manual outro** | A fresh ~15s intro (real face, real voice, today's clothes = internally consistent) gives a human moment with natural lip-sync. Current convention: intro is face-only inside the blue grid frame. For now, each video can supply a manual `videos/<slug>/outro.mp4`; the engine normalizes it and adds deterministic outro music underneath. A generated/reusable spoken outro is deferred to Stages 9–12. |
 | 5 | **Tella as the engine (not DIY CleanShotX + FFmpeg)** | Tella's MCP is the automation surface *and* the auto-polish (zoom, layouts, blur/highlights). Dropping it to save $26 would forfeit both. CleanShotX kept for quick grabs only. |
-| 6 | **Claude orchestrates and writes the script (not ChatGPT)** | Claude is already the harness with the tools; routing the script to ChatGPT adds a key + cost + a copy-paste seam for no gain. Transcription is free from Tella. |
+| 6 | **The coding agent orchestrates and writes the script (not ChatGPT)** | Claude Code and Codex can both run the harness with the local tools; routing the script to ChatGPT adds a key + cost + a copy-paste step for no gain. Transcription is free from Tella. |
 | 7 | **ElevenLabs for voice (Multilingual v2)** | Replaces HeyGen's voice role — *not* an added subscription. v2 for consistent narration; Eleven v3 optional for more expression. |
 | 8 | **FFmpeg for audio + branding** | Tella's MCP can't replace audio or add music, so FFmpeg muxes the VO, normalizes intro/outro audio, mixes a music bed under the spoken intro and transition cards, overlays the logo, and can burn captions when `--captions` is explicitly requested. |
-| 9 | **Animated chapter cards generated as code** | Tella has no native title-card creation. Claude renders branded 3.5s animated cards → MP4 → inserts them before chapter starts. Replaces the manual Google Slides → PNG step; timestamps also auto-fill YouTube description chapters. |
+| 9 | **Animated chapter cards generated as code** | Tella has no native title-card creation. The agent renders branded 3.5s animated cards → MP4 → inserts them before chapter starts. Replaces the manual Google Slides → PNG step; timestamps also auto-fill YouTube description chapters. |
 | 10 | **YouTube Data API for publishing (not Tella upload)** | FFmpeg holds the final cut, so we upload that. The Data API is also the only route to *scheduled* publishing (`private` + `publishAt`) — giving YouTube hours to index. |
 | 11 | **Self-improving loop** | `house-style.md` is read every run and updated by a post-video retro, so corrections become permanent rules. This is what makes it an engine, not a one-off. |
 | 12 | **Secret-leak QA gate: balanced** | Flags obvious keys/`.env`/tokens before publish without paranoid-blocking anything key-shaped. |
@@ -201,7 +202,7 @@ Every major fork, with the reasoning. This is the project's decision record.
 - **HeyGen avatar (any usage)** — uncanny and low-value in a screen-first format; cost scales with avatar minutes.
 - **X-path (clean real recorded audio)** — doesn't reduce the creator's actual pain (performing), only engineering risk. Knowingly traded engineering risk for the freedom to ramble.
 - **CleanShotX + FFmpeg only** — free, but throws away the MCP automation surface and the auto-polish; false economy.
-- **ChatGPT for transcribe/script** — Tella transcribes for free; Claude scripts natively. ChatGPT only as an optional manual paste step.
+- **ChatGPT for transcribe/script** — Tella transcribes for free; the coding agent scripts natively. ChatGPT only as an optional manual paste step.
 - **fal.ai / OpenRouter / kie.ai for voice (now)** — kept as future cost/flexibility options behind the pluggable TTS interface; none beats a professional clone of *your* voice today.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -214,7 +215,7 @@ Every major fork, with the reasoning. This is the project's decision record.
 |------|------|------|
 | **Tella Pro** | Record + edit engine + MCP | **$26/mo** |
 | **ElevenLabs Creator** | Cloned voice | **$22/mo** (or Starter $5 to validate) |
-| Claude Code | Orchestrator + scriptwriter | already owned |
+| Claude Code / Codex | Orchestrator + scriptwriter | already owned |
 | FFmpeg / CleanShotX | Audio/branding / capture | free |
 | YouTube Data API | Publishing | free |
 | HeyGen | — cut — | $0 |
@@ -232,15 +233,15 @@ For reference, the original avatar-based concept was **~$70/mo + ~$18/video**.
 | Stage | Owner | Input → Output |
 |-------|-------|----------------|
 | 1. Ingest | `make-video` skill (Tella MCP) | Tella clips → `transcript.json` |
-| 2. Script | Claude ✋ | transcript + `house-style.md` → `script.json` |
+| 2. Script | Agent ✋ | transcript + `house-style.md` → `script.json` |
 | 3. Voice | `src/elevenlabs.ts` | `script.json` → `vo/*.mp3` |
-| 4. Visual edit | `scripts/plan-zooms.ts` + Claude (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4`; body layout convention is fullscreen `screen-only`; blur/highlights are applied through Tella MCP when available |
-| 5. Mux | `scripts/make-video.ts` + `src/finish.ts` (FFmpeg) | visuals + VO + music + logo + optional captions + 3.5s chapter cards + intro + outro → `final.mp4` |
-| 6. QA | Claude ✋ | `final.mp4` → checks pass / fixes |
+| 4. Visual edit | `scripts/plan-zooms.ts` + Agent (Tella MCP) | `script.json` zoom cues → `zoom-plan.json` → zoomed `recording.mp4`; body layout convention is fullscreen `screen-only`; blur/highlights are applied through Tella MCP when available |
+| 5. Mux | `scripts/make-video.ts` + `src/finish.ts` (FFmpeg) | visuals + VO + music + logo + optional captions + 3.5s chapter cards + intro + outro → `final.mp4` + `adjustments.json` |
+| 6. QA | Agent ✋ | `final.mp4` + `adjustments.json` → checks pass / fixes |
 | 7. Publish | `scripts/publish.ts` (YouTube API) | `final.mp4` + `metadata.json` → scheduled video |
-| 8. Retro | Claude + `scripts/retro.ts` | approved corrections → `house-style.md` |
+| 8. Retro | Agent + `scripts/retro.ts` | approved corrections → `house-style.md` |
 
-**Guiding principle: Claude does judgment, scripts do determinism.** The LLM handles taste (script, zoom placement, music choice, QA). Small `bun`-run TypeScript scripts handle the mechanical work (API calls, FFmpeg, upload) so they're reliable, testable, and re-runnable without spending tokens. Every stage reads/writes **files** in `videos/<slug>/`, so any stage re-runs independently.
+**Guiding principle: agents do judgment, scripts do determinism.** The LLM handles taste (script, zoom placement, music choice, QA). Small `bun`-run TypeScript scripts handle the mechanical work (API calls, FFmpeg, upload) so they're reliable, testable, and re-runnable without spending tokens. Every stage reads/writes **files** in `videos/<slug>/`, so any stage re-runs independently.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -278,6 +279,8 @@ To de-risk the two unproven assumptions (rambling → a good script; footage↔v
 
 ```
 aimh-video-engine/
+├── AGENTS.md                              # Codex project guidance
+├── .agents/skills/make-video/SKILL.md    # Codex-discoverable make-video mirror
 ├── .claude/skills/make-video/SKILL.md   # the make-video orchestrator skill
 ├── src/
 │   ├── types.ts          # shared types
@@ -285,10 +288,11 @@ aimh-video-engine/
 │   ├── align.ts          # planSegments() — sizes footage to voice (the re-sync core)
 │   ├── ffprobe.ts        # ffprobeDuration()
 │   ├── elevenlabs.ts     # synthesizeChunk() — cloned-voice VO (cached)
+│   ├── adjustments.ts    # adjustments.json + review summary rows
 │   └── finish.ts         # assembleVideo() — FFmpeg cut/speed/pad/concat/mux
-├── scripts/make-video.ts # CLI: script.json + recording.mp4 -> final.mp4
+├── scripts/make-video.ts # CLI: script.json + recording.mp4 -> final.mp4 + adjustments.json
 ├── tests/                # bun tests (align, transcript, finish)
-├── videos/<slug>/        # per-video working dir (gitignored): recording.mp4 · *.srt · script.json · vo/ · final.mp4
+├── videos/<slug>/        # per-video working dir (gitignored): recording.mp4 · *.srt · script.json · vo/ · final.mp4 · adjustments.json
 ├── docs/plans/           # implementation plans
 ├── plan.md               # future stages 9–12
 └── README.md
@@ -300,13 +304,13 @@ aimh-video-engine/
 
 ## Getting Started
 
-> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, fullscreen body-layout conventions, deterministic music under manual outros, scheduled YouTube publishing, and the post-video retro loop.
+> The core pipeline is implemented and runs today, plus intro/outro wrap, **per-chunk auto-zoom** (Stage 4), music, chapter cards, logo overlay, optional captions, TTS-safe `aimh.co` pronunciation, optional ElevenLabs pronunciation dictionary locators, fullscreen body-layout conventions, deterministic music under manual outros, `adjustments.json` review summaries, scheduled YouTube publishing, and the post-video retro loop.
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (JavaScript/TypeScript runtime)
 - [FFmpeg](https://ffmpeg.org/download.html) **with libass** (needed only when using `--captions`). `brew install ffmpeg` usually includes it — check with `ffmpeg -version | grep libass`. If yours doesn't (e.g. a minimal build), install the fuller `ffmpeg-full` formula and point `FFMPEG`/`FFPROBE` at it (see Environment Variables).
-- [Claude Code](https://claude.com/claude-code)
+- [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex/) for the agent-driven workflow
 - A [Tella](https://www.tella.com/) account (Pro) with the MCP connected
 - An [ElevenLabs](https://elevenlabs.io/) account (Creator) with a cloned voice
 - A Google Cloud project with the YouTube Data API enabled (OAuth)
@@ -334,8 +338,8 @@ The intended operator flow is agent-driven. You should be able to tell Claude Co
 
 1. Record your screen in Tella while rambling through what you're doing (and add zoom/blur in Tella if you like).
 2. Export the recording (`.mp4`) and its subtitles (`.srt`) into `videos/<slug>/` (as `recording.mp4` + the `.srt`).
-3. In Claude Code, invoke the **`make-video`** skill — Claude reads `house-style.md` plus the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
-4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, wraps a real-face `intro.mp4` plus manual per-video `outro.mp4`, and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`). It also overlays your `assets/logo.png` as a top-right watermark. The agent runs QA, you review the result (✋), and you tell the agent what needs correction.
+3. In Claude Code or Codex, invoke the **`make-video`** skill — the agent reads `house-style.md` plus the `.srt`, writes a clean chunked `script.json`, and (after your ✋ approval) runs `bun run make-video <slug>`.
+4. The engine synthesizes your cloned voice, re-times the footage to it, optionally inserts 3.5s chapter cards, wraps a real-face `intro.mp4` plus manual per-video `outro.mp4`, and writes `videos/<slug>/final.mp4` (1080p H.264 `crf 18`) plus `videos/<slug>/adjustments.json`. It also overlays your `assets/logo.png` as a top-right watermark. The agent runs QA, surfaces the adjustments table (VO duration, captions, chapter timestamps, zoom/highlight/blur status, music, logo, intro/outro, final duration/resolution), you review the result (✋), and you tell the agent what needs correction.
 5. If something is wrong, describe the issue in plain language. Examples: ElevenLabs mispronounced a term, Tella exported the wrong visual segment, a zoom/highlight/blur is misplaced, the intro/outro audio balance is off, or a layout/background needs changing. The agent should make the targeted fix, re-render, re-run QA, and ask you to review again.
 6. When approved, the agent uploads or schedules the video using the YouTube publishing step.
 7. At the end of the session, tell the agent: `run retro for <slug>`. The agent writes durable lessons into `videos/<slug>/retro.json`; you review the rules; then the agent runs `bun run retro <slug> --apply` to update `house-style.md`.
