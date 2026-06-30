@@ -7,11 +7,21 @@ import { deriveChapters, chapterOffsetSec } from "../src/chapters";
 import { cardSvg, renderCardPng, renderCardClip } from "../src/cards";
 import { resolveMusicSelection } from "../src/music";
 import { captionsEnabledFromArgs } from "../src/options";
+import { ffprobeDuration, ffprobeVideoSize } from "../src/ffprobe";
+import { adjustmentRows, buildAdjustmentsSummary } from "../src/adjustments";
 import type { ScriptChunk, VoChunk } from "../src/types";
 
 const slug = process.argv[2];
 if (!slug) throw new Error("usage: bun run make-video <slug>");
 const dir = `videos/${slug}`;
+
+function parseSrtCueCount(srt: string): number {
+  return (srt.match(/-->/g) ?? []).length;
+}
+
+async function readJsonIfExists<T>(path: string): Promise<T | undefined> {
+  return (await Bun.file(path).exists()) ? (await Bun.file(path).json()) as T : undefined;
+}
 
 const script = (await Bun.file(`${dir}/script.json`).json()) as ScriptChunk[];
 if (!script.length) throw new Error(`${dir}/script.json is empty`);
@@ -134,5 +144,33 @@ if (logo) {
   await Bun.$`mv ${tmp} ${out}`;
   console.log(`+ logo: ${logo}`);
 }
+
+const zoomPlan = await readJsonIfExists<{ zooms?: unknown[] }>(`${dir}/zoom-plan.json`);
+const overlayPlan = await readJsonIfExists<{ overlays?: { kind?: string }[] }>(`${dir}/overlay-plan.json`);
+const overlays = overlayPlan?.overlays ?? [];
+const finalResolution = await ffprobeVideoSize(out);
+const finalDurationSec = await ffprobeDuration(out);
+const summary = buildAdjustmentsSummary({
+  slug,
+  script,
+  vo,
+  captionsFile,
+  captionsCueCount: captionsFile ? parseSrtCueCount(await Bun.file(captionsFile).text()) : 0,
+  tellaProjectPresent: await Bun.file(`${dir}/tella.json`).exists(),
+  zoomCount: zoomPlan?.zooms?.length ?? 0,
+  highlightCount: overlays.filter((o) => o.kind === "highlight").length,
+  blurCount: overlays.filter((o) => o.kind === "blur").length,
+  bodyTrack,
+  outroTrack,
+  logoFile: logo,
+  introFile: intro,
+  outroFile: outro,
+  finalFile: out,
+  finalDurationSec,
+  finalResolution,
+});
+await Bun.write(`${dir}/adjustments.json`, JSON.stringify(summary, null, 2));
+console.log(`+ adjustments: ${dir}/adjustments.json`);
+console.table(adjustmentRows(summary));
 
 console.log(`done → ${out}`);
