@@ -20,7 +20,7 @@ const INTRO_MUSIC_FADE_SEC = 1.0;
 // A `subtitles` filter clause for the given srt path, escaped for the filtergraph.
 function subtitlesClause(captionsFile: string): string {
   const p = captionsFile.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
-  return `,subtitles='${p}':force_style='${CAPTION_STYLE}'`;
+  return `,subtitles=filename='${p}':force_style='${CAPTION_STYLE}'`;
 }
 
 // A concat-demuxer list line: an ABSOLUTE path (list entries otherwise resolve relative to the
@@ -36,6 +36,36 @@ async function runStage(stage: string, build: () => Promise<unknown>): Promise<v
   } catch (err) {
     throw new Error(`ffmpeg failed during ${stage}: ${(err as Error).message}`);
   }
+}
+
+async function runFfmpeg(stage: string, args: string[]): Promise<void> {
+  const proc = Bun.spawn([FFMPEG, ...args], { stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) {
+    const detail = (stderr || stdout).trim();
+    throw new Error(`ffmpeg failed during ${stage}: ${detail || `exit ${code}`}`);
+  }
+}
+
+async function concatVoiceoverAudio(segments: Segment[], workDir: string): Promise<string> {
+  const out = `${workDir}/audio.wav`;
+  const inputs = segments.flatMap((s) => ["-i", s.voFile]);
+  const filter = segments.length === 1
+    ? "[0:a]aresample=48000[a]"
+    : `${segments.map((_, i) => `[${i}:a]`).join("")}concat=n=${segments.length}:v=0:a=1,aresample=48000[a]`;
+  await runFfmpeg("concat audio", [
+    "-y",
+    ...inputs,
+    "-filter_complex", filter,
+    "-map", "[a]",
+    "-c:a", "pcm_s16le",
+    out,
+  ]);
+  return out;
 }
 
 // Build one normalized video clip per segment (speed-adjusted, freeze-padded, muted).
@@ -68,11 +98,9 @@ export async function assembleVideo(opts: {
   await runStage("concat video", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${listFile} \
     -vf ${vf} -fps_mode cfr -r 30 -pix_fmt yuv420p -c:v libx264 -crf 18 -preset medium ${videoConcat}`.quiet());
 
-  // 3. Concat VO audio.
-  const voList = `${opts.workDir}/vo.txt`;
-  await Bun.write(voList, opts.segments.map((s) => concatLine(s.voFile)).join("\n"));
-  const audioConcat = `${opts.workDir}/audio.mp3`;
-  await runStage("concat audio", () => Bun.$`${FFMPEG} -y -f concat -safe 0 -i ${voList} -c copy ${audioConcat}`.quiet());
+  // 3. Concat VO audio on a decoded timeline. MP3 concat-demuxer copy preserves each file's
+  // encoder delay/padding; across many chunks that drifts chapter-card offsets into spoken words.
+  const audioConcat = await concatVoiceoverAudio(opts.segments, opts.workDir);
 
   // 4. Mux video + voiceover; end at the shorter stream.
   await runStage("mux", () => Bun.$`${FFMPEG} -y -i ${videoConcat} -i ${audioConcat} -map 0:v:0 -map 1:a:0 \

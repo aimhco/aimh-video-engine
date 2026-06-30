@@ -4,6 +4,11 @@ import { ffprobeDuration } from "../src/ffprobe";
 import { FFMPEG, FFPROBE } from "../src/ffmpeg";
 import type { Segment } from "../src/types";
 
+async function hasFfmpegFilter(name: string): Promise<boolean> {
+  const filters = await Bun.$`${FFMPEG} -hide_banner -filters`.text();
+  return filters.split("\n").some((line) => line.includes(` ${name} `));
+}
+
 // Generates a 6s test recording + two 2s tone VO files with ffmpeg, then assembles.
 test("assembleVideo produces a file whose duration matches the sum of targets", async () => {
   const dir = `${import.meta.dir}/fixtures/finish`;
@@ -27,6 +32,34 @@ test("assembleVideo produces a file whose duration matches the sum of targets", 
   expect(streams).toContain("audio");
 });
 
+test("assembleVideo keeps many short MP3 chunks aligned to the summed VO timeline", async () => {
+  const dir = `${import.meta.dir}/fixtures/finish-audio-drift`;
+  await Bun.$`rm -rf ${dir}`;
+  await Bun.$`mkdir -p ${dir}/vo`;
+  await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=320x240:d=4 -pix_fmt yuv420p ${dir}/recording.mp4`.quiet();
+
+  const segments: Segment[] = [];
+  const chunkCount = 12;
+  for (let i = 0; i < chunkCount; i++) {
+    const id = `c${i + 1}`;
+    await Bun.$`${FFMPEG} -y -f lavfi -i sine=frequency=${440 + i * 20}:duration=0.2 ${dir}/vo/${id}.mp3`.quiet();
+    segments.push({
+      id,
+      sourceStart: i * 0.2,
+      sourceUsedDuration: 0.2,
+      speedFactor: 1,
+      padDuration: 0,
+      targetDuration: 0.2,
+      voFile: `${dir}/vo/${id}.mp3`,
+    });
+  }
+
+  const out = await assembleVideo({ recording: `${dir}/recording.mp4`, segments, workDir: `${dir}/work`, out: `${dir}/final.mp4` });
+  const dur = await ffprobeDuration(out);
+  expect(dur).toBeGreaterThan(2.25);
+  expect(dur).toBeLessThan(2.55);
+});
+
 test("assembleVideo throws on empty segments", async () => {
   await expect(
     assembleVideo({ recording: "nonexistent.mp4", segments: [], workDir: "/tmp/aimh-none", out: "/tmp/aimh-none/out.mp4" })
@@ -34,6 +67,11 @@ test("assembleVideo throws on empty segments", async () => {
 });
 
 test("assembleVideo burns captions when a captionsFile is given", async () => {
+  if (!(await hasFfmpegFilter("subtitles"))) {
+    console.warn("skipping caption burn-in fixture: ffmpeg lacks the subtitles/libass filter");
+    return;
+  }
+
   const dir = `${import.meta.dir}/fixtures/finish-cap`;
   await Bun.$`mkdir -p ${dir}/vo`;
   await Bun.$`${FFMPEG} -y -f lavfi -i color=c=blue:s=320x240:d=6 -pix_fmt yuv420p ${dir}/recording.mp4`.quiet();
